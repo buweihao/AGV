@@ -1,0 +1,843 @@
+﻿using BasicRegionNavigation.Helper;
+using BasicRegionNavigation.ViewModels;
+using DocumentFormat.OpenXml.Spreadsheet;
+using Microsoft.Extensions.DependencyInjection;
+using MyLog;
+using MyModbus;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
+using static BasicRegionNavigation.Services.MiddleFrameBusinessServices;
+
+namespace BasicRegionNavigation.Services
+{
+
+
+
+
+    public interface IMiddleFrameBusinessServices
+    {
+        //中框阳极上下挂的业务内容
+        //中框每个模组拥有3个PLC:上料机A、上料机B、翻转台
+
+        //一、上料信息采集,这个采集是根据某个触发点从而触发的一个任务，然后将数据存入数据库
+        void ProductCollectionMissionStart();
+
+        //二、两个上料机的小时数据采集，需要在每个整点的最后时刻将某个寄存器的数据作为小时产能数据存入数据库,并且伴随部分其他的小时数据
+        void FeedersHourlyDataCollectionMissionStart();
+
+        //三、翻转台的小时数据采集，需要在每个整点的最后时刻将某个寄存器的数据作为小时产能数据存入数据库,并且伴随部分其他的小时数据
+        void FlipperHourlyDataCollectionMissionStart();
+
+        //控制两个小时任务的周期
+        void StartCollectionTask(CollectionFrequency frequency);
+
+        //四、转产
+        void ChangeoverMissionStart();
+
+        // 五、时间写入 (新增)
+        void TimeSyncMissionStart();
+
+        // [新增] 六、颜色独立转发任务
+        void ColorChangeMissionStart();
+
+    }
+    public class MiddleFrameBusinessServices : IMiddleFrameBusinessServices
+    {
+        private readonly IFlipperHourlyService _flipperHourlyService;
+        private readonly IUpDropHourlyService _upDropHourlyCapacityService;
+        private readonly DataBus _bus;
+        private readonly IProductionService _productionService;
+        private readonly DataCollectionEngine _engine;
+        private ILoggerService _logger => _serviceProvider.GetRequiredService<ILoggerService>();
+        private readonly IServiceProvider _serviceProvider;
+
+        public MiddleFrameBusinessServices(IServiceProvider serviceProvider, DataCollectionEngine engine, DataBus bus, IProductionService productionService, IFlipperHourlyService flipperHourlyService, IUpDropHourlyService upDropHourlyCapacityService)
+        {
+            //构造函数
+            _serviceProvider = serviceProvider;
+            _flipperHourlyService = flipperHourlyService;
+            _upDropHourlyCapacityService = upDropHourlyCapacityService;
+            _bus = bus;
+            _productionService = productionService;
+            _engine = engine;
+        }
+        public enum CollectionFrequency
+        {
+            Hourly,     // 每小时 (xx:59:59 触发)
+            Minutely,   // 每分钟 (xx:xx:59 触发)
+            PerSecond   // 每秒 (严格按秒触发)
+        }
+        /// <summary>
+        /// [入口] 启动自动采集任务 (更新版)
+        /// 确保此方法只被调用一次
+        /// </summary>
+        public void StartCollectionTask(CollectionFrequency frequency)
+        {
+            Task.Factory.StartNew(async () =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        // 1. 根据频率计算下一次触发时间
+                        var now = DateTime.Now;
+                        DateTime nextTarget = now;
+
+                        switch (frequency)
+                        {
+                            case CollectionFrequency.Hourly:
+                                // 原有逻辑：对齐到 xx:59:59
+                                nextTarget = new DateTime(now.Year, now.Month, now.Day, now.Hour, 59, 59);
+                                // 如果当前时间已经过了 xx:59:59，就设定为下个小时
+                                if (now >= nextTarget)
+                                    nextTarget = nextTarget.AddHours(1);
+                                break;
+
+                            case CollectionFrequency.Minutely:
+                                // 新增逻辑：对齐到 xx:xx:59
+                                nextTarget = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 59);
+                                // 如果当前时间已经过了本分钟的59秒，就设定为下一分钟
+                                if (now >= nextTarget)
+                                    nextTarget = nextTarget.AddMinutes(1);
+                                break;
+
+                            case CollectionFrequency.PerSecond:
+                                // 新增逻辑：对齐到下一秒的整点 (防止漂移)
+                                // 比如现在是 12:00:01.200，下一次就是 12:00:02.000
+                                nextTarget = now.AddSeconds(1).AddMilliseconds(-now.Millisecond);
+                                break;
+                        }
+
+                        // 计算需要等待的时间
+                        var delay = nextTarget - DateTime.Now; // 重新取Now以提高精度
+
+                        // 如果计算出的延时大于0，则等待；否则直接执行(可能是极其微小的计算耗时导致)
+                        if (delay.TotalMilliseconds > 0)
+                            await Task.Delay(delay);
+
+                        // 2. 执行所有设备的采集任务
+                        // 注意：如果采集任务耗时很长且频率是每秒，可能会导致任务堆积或跳秒
+                        // 建议这里可以不await，或者确保采集非常快
+                        FeedersHourlyDataCollectionMissionStart();
+                        FlipperHourlyDataCollectionMissionStart();
+
+                        // 3. 特殊处理：防止由于代码执行极快，在同一秒/同一时刻内重复触发
+                        // 对于“每秒”模式，我们依靠nextTarget计算自动推到下一秒，不需要额外延时
+                        // 对于“每分/每时”，为了安全起见，可以简单挂起一小会儿，但要避免影响下次计算
+                        if (frequency != CollectionFrequency.PerSecond)
+                        {
+                            await Task.Delay(1000);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // 记录日志...
+                        // 出错后等待一段时间再重试，避免死循环刷报错
+                        await Task.Delay(frequency == CollectionFrequency.PerSecond ? 1000 : 60000);
+                    }
+                }
+            }, TaskCreationOptions.LongRunning);
+        }
+
+
+
+        #region  业务一、产品信息采集
+        public void ProductCollectionMissionStart()
+        {
+            // =============================================================
+            // 1. 上料机 (遍历启用列表)
+            // =============================================================
+            // 只有在 SystemConfig.ActiveUpLoaders 里配了设备，这里才会执行
+            foreach (var deviceTemplate in SystemConfig.ActiveUpLoaders)
+            {
+                // 绑定上料逻辑 HandleUpLoad_Trigger
+                SubscribeToDevice(deviceTemplate, SystemConfig.TriggerSuffix, HandleUpLoad_Trigger);
+            }
+
+            // =============================================================
+            // 2. 下料机 (遍历启用列表 - 新增)
+            // =============================================================
+            // 只有在 SystemConfig.ActiveDownLoaders 里配了设备，这里才会执行
+            foreach (var deviceTemplate in SystemConfig.ActiveDownLoaders)
+            {
+                // [注意] 下料通常需要不同的处理逻辑 (HandleDownLoad_Trigger)
+                // 因为上料是 "Entry_Upload" (创建/录入)，下料是 "Exit_Download" (完结/更新)
+                SubscribeToDevice(deviceTemplate, SystemConfig.TriggerSuffix, HandleDownLoad_Trigger);
+            }
+
+            // =============================================================
+            // 3. 翻转台 (Flipper)
+            // =============================================================
+            // 使用 SystemConfig.Dev_UpFlipper 常量
+            // 翻转台一般是固定的，所以直接用常量引用
+            SubscribeToDevice(SystemConfig.Dev_UpFlipper, $"A_{SystemConfig.TriggerSuffix}", HandleFlipper_Trigger);
+            SubscribeToDevice(SystemConfig.Dev_UpFlipper, $"B_{SystemConfig.TriggerSuffix}", HandleFlipper_Trigger);
+        }
+
+
+
+        /// <summary>
+        /// 通用订阅辅助方法
+        /// </summary>
+        /// <param name="templateDeviceId">CSV中的原始设备ID (如 PLC_Feeder_A)</param>
+        /// <param name="pointSuffix">点位后缀 (如 ReadTrigger)</param>
+        /// <param name="handler">回调函数</param>
+        /// <summary>
+        /// 通用订阅辅助方法 (已升级支持多模组)
+        /// </summary>
+        private void SubscribeToDevice(string templateDeviceId, string pointSuffix, Action<TagData> handler)
+        {
+            // 使用 SystemConfig.Modules 遍历所有定义的模组 (例如 "1", "2")
+            foreach (var module in SystemConfig.Modules)
+            {
+                // 1. 构造运行时的设备 ID (自动加上模组前缀)
+                // 注意：这里使用循环变量 module，而不是之前的 ModuleId
+                // 结果示例: "1_PLC_Feeder_A", "2_PLC_Feeder_A"
+                string realDeviceId = ModbusKeyHelper.BuildDeviceId(module, templateDeviceId);
+
+                // 2. 构造完整的点位名
+                // 结果示例: "1_PLC_Feeder_A_ReadTrigger"
+                string finalTagName = ModbusKeyHelper.Build(realDeviceId, null, pointSuffix);
+
+                // 3. 注册订阅
+                // 为每个模组的对应设备都绑定同一个处理函数
+                _bus.Subscribe(finalTagName, handler);
+            }
+        }
+
+        private void HandleUpLoad_Trigger(TagData data)
+        {
+            //上料机这边是触发点为1时表示触发，读完回写0即可
+            if (data.IsQualityGood && data.Value is System.Int16 speed && speed == 1)
+            {
+                //触发成功
+                //去缓冲区读产品码,先要知道那个点位名
+                //使用代理，传入触发点TagData，可以直接代理获取对应数据
+                var flipper = new UpLoadProxy(_bus, data);
+
+                //通过代理获取产品码
+                var ProductCode = flipper.ProductCode;
+                //通过代理获取所属机器名
+                var BelongMechine = flipper.DeviceName;
+
+                if (ProductCode is string)
+                {
+                    var contextA = StationProcessContext.Create(
+                        deviceId: BelongMechine,
+                        identity: (string)ProductCode,        // 传 SN
+                        type: StationProcessType.Entry_Upload, // 明确指明是上料
+                        data: null
+                    );
+                    _productionService.ProcessProductDataAsync(contextA);
+                }
+
+                //回写
+                _engine.WriteTag(data.TagName, 0);
+            }
+        }
+
+        private void HandleDownLoad_Trigger(TagData data)
+        {
+            //上料机这边是触发点为1时表示触发，读完回写0即可
+            if (data.IsQualityGood && data.Value is System.Int16 speed && speed == 1)
+            {
+                //触发成功
+                //去缓冲区读产品码,先要知道那个点位名
+                //使用代理，传入触发点TagData，可以直接代理获取对应数据
+                var flipper = new UpLoadProxy(_bus, data);
+
+                //通过代理获取产品码
+                var ProductCode = flipper.ProductCode;
+                //通过代理获取所属机器名
+                var BelongMechine = flipper.DeviceName;
+
+                if (ProductCode is string)
+                {
+                    var contextA = StationProcessContext.Create(
+                        deviceId: BelongMechine,
+                        identity: (string)ProductCode,        // 传 SN
+                        type: StationProcessType.Entry_Upload, // 明确指明是上料
+                        data: null
+                    );
+                    _productionService.ProcessProductDataAsync(contextA);
+                }
+
+                //回写
+                _engine.WriteTag(data.TagName, 0);
+            }
+        }
+
+        private void HandleFlipper_Trigger(TagData data)
+        {
+            // 1. 校验触发信号：必须是 Good 且值为 11
+            if (data.IsQualityGood && data.Value is short speed && speed == 11)
+            {
+                // 2. 创建智能代理 (自动识别是 A 面还是 B 面触发)
+                var flipper = new FlipperProductProxy(_bus, data.TagName);
+
+                // 3. 通过代理一次性获取所有上下文信息
+                var fixture = flipper.FixtureCode;
+                var belongMachine = flipper.DeviceName; // 例如 PLC_Flipper_A
+                var projectNo = flipper.ProductProjectNo;
+                var category = flipper.ProductCategory;
+                var productCodes = flipper.CurrentProductCodes; // 获取列表
+                var color = flipper.ProductColor;
+                // 4. 遍历所有产品码，逐个生成生产数据
+                // (翻转台一次可能翻转多个产品，CSV中长度168也暗示了这一点)
+                foreach (var sn in productCodes)
+                {
+                    if (string.IsNullOrWhiteSpace(sn)) continue;
+
+                    // 4.1 组装扩展数据 (这里可以放想要存入数据库Json列的任何额外信息)
+                    var plcData = new Dictionary<string, object>
+                    {
+                        { "FixtureCode", fixture },
+                        { "ProjectNumber", projectNo },
+                        { "ProductCategory", category },
+                        { "ProductColor", color }, // [新增] 将颜色加入字典
+                        { "Side", flipper.IsSideA ? "A" : "B" } // 记录是哪一面
+                    };
+
+                    // 4.2 构造调用上下文
+                    var context = StationProcessContext.Create(
+                        deviceId: belongMachine,              // 哪个逻辑设备 (PLC_Flipper_A)
+                        identity: sn,                         // 产品的 SN 码 (循环变量)
+                        type: StationProcessType.Process_Flip,// 工序类型
+                        data: plcData                         // 原始数据包
+                    );
+
+                    // 4.3 执行异步调用 (Fire and Forget 或 await 取决于上层调用)
+                    // 注意：如果在 void 方法中调用 async，建议使用 Task.Run 或确保内部处理了异常
+                    _productionService.ProcessProductDataAsync(context);
+                }
+
+                // 可选：打印日志
+                //Console.WriteLine($"翻转台触发处理完成: 设备={belongMachine}, 数量={productCodes.Count}");
+            }
+        }
+
+        #endregion
+
+        #region 业务二、供料机小时数据采集
+        /// <summary>
+        /// [业务逻辑] 执行一次数据采集
+        /// </summary>
+        public void FeedersHourlyDataCollectionMissionStart()
+        {
+            // 1. 定义模组列表
+            string[] modules = SystemConfig.Modules;
+
+            // 2. 定义设备模板
+            string[] feeders = SystemConfig.AllActiveFeeders;
+
+            // 3. 遍历采集
+            foreach (var module in modules)
+            {
+                foreach (var templateDeviceName in feeders)
+                {
+                    try
+                    {
+                        // A. 构造真实设备ID (如 "1_PLC_Feeder_A")
+                        string realDeviceId = ModbusKeyHelper.BuildDeviceId(module, templateDeviceName);
+
+                        // B. 构造点位名称
+                        // [重点] 产能点位：使用 "_TotalCapacity" (累计值)
+                        string tagTotalCap = ModbusKeyHelper.Build(realDeviceId, null, "TotalCapacity");
+
+                        // 项目号
+                        string tagProject = ModbusKeyHelper.Build(realDeviceId, null, "ProjectNo");
+
+                        // [重点] 其他统计点位：使用 "_Hourly_xxx" (PLC提供的统计值)
+                        string tagStandby = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_StandbyTimeMin");
+                        string tagFaultTime = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_FaultTimeMin");
+                        string tagFaultCount = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_FaultCount");
+                        string tagSystemNG = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_SystemNG");
+                        string tagMaterialLost = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_MaterialLost");
+
+                        // C. 从 DataBus 获取数据
+                        var dataPayload = new Dictionary<string, object>();
+
+                        // Key 必须与 Service 中的 GetInt 字符串一致
+                        dataPayload["TotalCapacity"] = _bus.GetValue(tagTotalCap);
+                        dataPayload["ProjectNo"] = _bus.GetValue(tagProject);
+
+                        dataPayload["Hourly_StandbyTimeMin"] = _bus.GetValue(tagStandby);
+                        dataPayload["Hourly_FaultTimeMin"] = _bus.GetValue(tagFaultTime);
+                        dataPayload["Hourly_FaultCount"] = _bus.GetValue(tagFaultCount);
+                        dataPayload["Hourly_SystemNG"] = _bus.GetValue(tagSystemNG);
+                        dataPayload["Hourly_MaterialLost"] = _bus.GetValue(tagMaterialLost);
+
+                        // D. 调用服务处理
+                        // 使用 Task.Run 确保不阻塞主线程，因为涉及到数据库IO
+                        Task.Run(() => _upDropHourlyCapacityService.ProcessHourlyDataAsync(realDeviceId, dataPayload));
+                    }
+                    catch (Exception ex)
+                    {
+                        // 这里可以记录单个设备的采集失败，互不影响
+                        // Console.WriteLine($"采集设备 {module}_{templateDeviceName} 失败", ex);
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region 业务三、翻转台小时数据采集
+        /// <summary>
+        /// [业务逻辑] 执行翻转台小时数据采集
+        /// </summary>
+        public void FlipperHourlyDataCollectionMissionStart()
+        {
+            // 1. 定义模组列表
+            string[] modules = SystemConfig.Modules;
+
+            // 2. 翻转台设备模板名
+            string templateDeviceName = "PLC_Flipper";
+
+            foreach (var module in modules)
+            {
+                try
+                {
+                    // A. 构造真实设备ID (如 "1_PLC_Flipper")
+                    string realDeviceId = ModbusKeyHelper.BuildDeviceId(module, templateDeviceName);
+
+                    // B. 构造点位名称
+                    // 产能增量源
+                    string tagTotalCap = ModbusKeyHelper.Build(realDeviceId, null, "TotalCapacity");
+
+                    // 业务字段
+                    string tagProject = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_ProjectNo");
+                    string tagProductType = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_ProductType");
+                    string tagBatchNo = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_BatchNo");
+                    string tagAnodeType = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_AnodeType");
+                    string tagMaterialCat = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_MaterialCategory");
+
+                    // 统计字段
+                    string tagStandby = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_StandbyTimeMin");
+                    string tagFaultTime = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_FaultTimeMin");
+                    string tagFaultCount = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_FaultCount");
+                    string tagMixing = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_MixingQty");
+                    string tagScanNG = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_ScanNGQty");
+                    string tagSysFeedback = ModbusKeyHelper.Build(realDeviceId, null, "Hourly_SysFeedbackQty");
+
+                    // C. 获取数据
+                    var dataPayload = new Dictionary<string, object>();
+
+                    dataPayload["TotalCapacity"] = _bus.GetValue(tagTotalCap);
+                    dataPayload["Hourly_ProjectNo"] = _bus.GetValue(tagProject);
+                    dataPayload["Hourly_ProductType"] = _bus.GetValue(tagProductType);
+                    dataPayload["Hourly_BatchNo"] = _bus.GetValue(tagBatchNo);
+                    dataPayload["Hourly_AnodeType"] = _bus.GetValue(tagAnodeType);
+                    dataPayload["Hourly_MaterialCategory"] = _bus.GetValue(tagMaterialCat);
+
+                    dataPayload["Hourly_StandbyTimeMin"] = _bus.GetValue(tagStandby);
+                    dataPayload["Hourly_FaultTimeMin"] = _bus.GetValue(tagFaultTime);
+                    dataPayload["Hourly_FaultCount"] = _bus.GetValue(tagFaultCount);
+                    dataPayload["Hourly_MixingQty"] = _bus.GetValue(tagMixing);
+                    dataPayload["Hourly_ScanNGQty"] = _bus.GetValue(tagScanNG);
+                    dataPayload["Hourly_SysFeedbackQty"] = _bus.GetValue(tagSysFeedback);
+
+                    // D. 调用服务
+                    Task.Run(() => _flipperHourlyService.ProcessFlipperHourlyDataAsync(realDeviceId, dataPayload));
+                }
+                catch (Exception ex)
+                {
+                    // Console.WriteLine($"翻转台采集失败 {module}", ex);
+                }
+            }
+        }
+
+
+        #endregion
+
+        #region 业务四、转产 (向供料机、翻转台下发数据 - 仅项目号)
+
+        public void ChangeoverMissionStart()
+        {
+            // 1. 获取模组列表
+            string[] modules = SystemConfig.Modules;
+
+            foreach (var module in modules)
+            {
+                foreach (var feederTemplate in SystemConfig.ActiveUpLoaders) // 注意：通常转产只涉及上料机
+                {
+                    SubscribeToChangeover(module, feederTemplate);
+                }
+            }
+        }
+
+        private void SubscribeToChangeover(string moduleId, string feederTemplateName)
+        {
+            string feederId = ModbusKeyHelper.BuildDeviceId(moduleId, feederTemplateName);
+            string triggerTag = ModbusKeyHelper.Build(feederId, null, "ChangeoverTrigger");
+
+            _bus.Subscribe(triggerTag, (data) =>
+            {
+                if (data.IsQualityGood && IsTriggered(data.Value))
+                {
+                    Task.Run(() => ExecuteForwardingLogic(moduleId, feederTemplateName, triggerTag));
+
+                    // 清空缓存
+                    _upDropHourlyCapacityService.ResetDeviceStates();
+                    _flipperHourlyService.ResetFlipperStates();
+                }
+            });
+        }
+
+        private void ExecuteForwardingLogic(string moduleId, string feederTemplateName, string triggerTag)
+        {
+            try
+            {
+                // [修改] 这里只发送项目号，不再发送颜色
+                Send2FlipperProjectNoOnly(moduleId, feederTemplateName);
+
+                // 复位触发信号 (写0)
+                _engine.WriteTag(triggerTag, (short)0);
+
+                // 通知翻转台 (写11)
+                ChangeoverFlipperTrigger(int.Parse(moduleId));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[{moduleId}] 转产转发异常: {feederTemplateName}", ex);
+            }
+        }
+
+        /// <summary>
+        /// [修改后] 只转发项目号，不再包含颜色
+        /// </summary>
+        private void Send2FlipperProjectNoOnly(string moduleId, string feederTemplateName)
+        {
+            try
+            {
+                // 1. 构造设备ID
+                string feederId = ModbusKeyHelper.BuildDeviceId(moduleId, feederTemplateName);
+                string flipperId = ModbusKeyHelper.BuildDeviceId(moduleId, SystemConfig.Dev_UpFlipper);
+
+                // 2. 读取源头(Feeder)的项目号
+                string srcProjectNo = ModbusKeyHelper.Build(feederId, null, "ProjectNo");
+                var valProjectNo = _bus.GetValue(srcProjectNo);
+
+                // 3. 写入目标(Flipper)的项目号
+                string destProjectNo = ModbusKeyHelper.Build(flipperId, null, "ProjectNo");
+
+                // 写入
+                string clearStr = new string('\0', 12);
+                _engine.WriteTag(destProjectNo, clearStr);
+                _engine.WriteTag(destProjectNo, valProjectNo);
+
+                // [注释掉] 颜色转发逻辑已移除，由 ColorChangeMissionStart 接管
+                // string srcColor = ModbusKeyHelper.Build(feederId, null, "ProductColor");
+                // var valColor = _bus.GetValue(srcColor);
+                // string destColor = ModbusKeyHelper.Build(flipperId, null, "ProductColor");
+                // _engine.WriteTag(destColor, valColor);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[{moduleId}] 项目号转发异常: {feederTemplateName}", ex);
+                throw;
+            }
+        }
+
+
+
+
+
+        // 辅助判断方法
+        private bool IsTriggered(object val)
+        {
+            if (val == null) return false;
+
+            // 优先判断是否已经是 bool 类型
+            if (val is bool b) return b;
+
+            // 再尝试处理数字类型
+            try
+            {
+                return Convert.ToInt32(val) == 1;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 上位机主动触发转产 (保持不变)
+        /// </summary>
+        public void ChangeoverFlipperTrigger(int num)
+        {
+            string moduleId = num.ToString();
+            string suffix = "ChangeoverTrigger"; // 注意：这里可能需要确认是否也带 Hourly_ 前缀
+            short triggerVal_ = 11; // 写入 11 触发
+
+            string deviceFlipper = ModbusKeyHelper.BuildDeviceId(moduleId, "PLC_Flipper");
+
+            // 如果翻转台的触发点也是 Hourly_ChangeoverTrigger，请同步修改 suffix
+            // 根据之前的上下文，翻转台触发可能是 1_PLC_Flipper_Hourly_ChangeoverTrigger
+            _engine.WriteTag(ModbusKeyHelper.Build(deviceFlipper, null, suffix), triggerVal_);
+        }
+
+        #endregion
+
+        #region 业务五、时间写入 
+
+        /// <summary>
+        /// 启动时间同步任务监听
+        /// 逻辑：订阅 Time 触发信号 -> 触发后写入 Year/Month/Day... -> 复位触发信号
+        /// </summary>
+        public void TimeSyncMissionStart()
+        {
+            // 定义模组和设备列表
+            string[] modules = SystemConfig.Modules;
+            // 注意：这里使用的是 CSV 里的原始设备名
+            string[] devices = SystemConfig.AllTimeSyncDevices;
+
+            foreach (var module in modules)
+            {
+                foreach (var device in devices)
+                {
+                    // 1. 构造订阅的点位名
+                    // 结果示例: "1_PLC_Flipper_Time"
+                    string realDeviceId = ModbusKeyHelper.BuildDeviceId(module, device);
+                    string triggerTag = ModbusKeyHelper.Build(realDeviceId, null, "Time");
+
+                    // 2. 订阅
+                    _bus.Subscribe(triggerTag, (data) =>
+                    {
+                        // 过滤条件：通讯良好且值为 1
+                        if (data.IsQualityGood && IsTriggered(data.Value))
+                        {
+                            // 3. 异步执行写入
+                            Task.Run(() => ExecuteTimeSync(realDeviceId, triggerTag));
+                        }
+                    });
+                }
+            }
+        }
+
+        /// <summary>
+        /// 执行时间同步逻辑
+        /// </summary>
+        private void ExecuteTimeSync(string realDeviceId, string triggerTag)
+        {
+            try
+            {
+                var now = DateTime.Now;
+
+                // A. 写入7个时间寄存器
+                // 根据 CSV 配置，这些点位都是 Int16，所以强转 (short)
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Year"), (short)now.Year);
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Month"), (short)now.Month);
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Day"), (short)now.Day);
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Hour"), (short)now.Hour);
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Minute"), (short)now.Minute);
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "Second"), (short)now.Second);
+
+                // WeekDay: C# 0(Sun)-6(Sat), 需确认PLC是否需要+1
+                // 暂时按 Modbus 常用习惯直接写入
+                _engine.WriteTag(ModbusKeyHelper.Build(realDeviceId, null, "WeekDay"), (short)now.DayOfWeek);
+
+                // B. 回写触发信号为 0
+                _engine.WriteTag(triggerTag, (short)0);
+
+                //Console.WriteLine($"[{realDeviceId}] 时间同步成功: {now}");
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"[{realDeviceId}] 时间同步失败: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region [新增] 业务六、独立颜色转发任务
+
+        /// <summary>
+        /// 启动颜色变更监听任务
+        /// 监听 ChangeColorTrigger (Bool)，触发后将 Feeder 颜色写入 Flipper
+        /// </summary>
+        public void ColorChangeMissionStart()
+        {
+            // 1. 遍历模组
+            string[] modules = SystemConfig.Modules;
+
+            foreach (var module in modules)
+            {
+                // 2. 遍历启用的上料机 (Feeder A / Feeder B)
+                foreach (var feederTemplate in SystemConfig.ActiveUpLoaders)
+                {
+                    SubscribeToColorChange(module, feederTemplate);
+                }
+            }
+        }
+
+        private void SubscribeToColorChange(string moduleId, string feederTemplateName)
+        {
+            // 1. 构造触发点位: 例如 1_PLC_Feeder_A_ChangeColorTrigger
+            string feederId = ModbusKeyHelper.BuildDeviceId(moduleId, feederTemplateName);
+            string triggerTag = ModbusKeyHelper.Build(feederId, null, "ChangeColorTrigger");
+
+            // 2. 订阅
+            _bus.Subscribe(triggerTag, (data) =>
+            {
+                // 3. 判断触发: Good 且 Value 为 True (Coil类型通常是bool)
+                if (data.IsQualityGood && IsTriggered(data.Value))
+                {
+                    // 4. 异步执行转发
+                    Task.Run(() => ExecuteColorForwarding(moduleId, feederTemplateName, triggerTag));
+                }
+            });
+        }
+
+        /// <summary>
+        /// 执行颜色转发逻辑
+        /// </summary>
+        private void ExecuteColorForwarding(string moduleId, string feederTemplateName, string triggerTag)
+        {
+            try
+            {
+                // A. 构造设备ID
+                string feederId = ModbusKeyHelper.BuildDeviceId(moduleId, feederTemplateName);
+                string flipperId = ModbusKeyHelper.BuildDeviceId(moduleId, SystemConfig.Dev_UpFlipper);
+
+                // B. 读取源头(Feeder)的颜色
+                // 假设 CSV 中颜色的别名是 "ProductColor"
+                string srcColorTag = ModbusKeyHelper.Build(feederId, null, "ProductColor");
+                var colorValue = _bus.GetValue(srcColorTag);
+
+                // C. 写入目标(Flipper)的颜色
+                string destColorTag = ModbusKeyHelper.Build(flipperId, null, "ProductColor");
+                string clearStr = new string('\0', 12);
+                _engine.WriteTag(destColorTag, clearStr);
+                _engine.WriteTag(destColorTag, colorValue);
+
+                // D. 复位触发信号 (写 False/0)
+                // 因为是 Bool 类型 (Coils)，通常写入 false 或 0
+                _engine.WriteTag(triggerTag, false);
+
+                // Console.WriteLine($"[{moduleId}] 颜色转发成功: {feederTemplateName} -> Flipper, 值: {colorValue}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[{moduleId}] 颜色转发异常: {feederTemplateName}", ex);
+            }
+        }
+
+        #endregion
+    }
+    public class UpLoadProxy
+    {
+        private readonly DataBus _bus;
+        private readonly string _triggerTagName;
+
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        /// <param name="bus">全局数据总线，用于读取兄弟点位的值</param>
+        /// <param name="triggerData">触发信号的数据包</param>
+        public UpLoadProxy(DataBus bus, TagData triggerData)
+        {
+            _bus = bus;
+            _triggerTagName = triggerData.TagName;
+        }
+
+        /// <summary>
+        /// 动态获取所属机器名
+        /// 逻辑：从 "PLC_Feeder_A_ReadTrigger" 解析出 "PLC_Feeder_A"
+        /// </summary>
+        public string DeviceName
+        {
+            get
+            {
+                // 使用 ModbusKeyHelper.GetDeviceNameFromTag (截取最后一个 '_' 之前的内容)
+                // 结果示例: "PLC_Feeder_A" 或 "PLC_Flipper_A"
+                return ModbusKeyHelper.GetDeviceNameFromTag(_triggerTagName);
+            }
+        }
+
+        /// <summary>
+        /// 动态获取同组的产品码
+        /// 逻辑：将 "ReadTrigger" 替换为 "ProductCode"
+        /// </summary>
+        public object ProductCode
+        {
+            get
+            {
+                // 1. 计算目标点位名
+                // 你的 ModbusKeyHelper.GetSibling 完美适用于此场景
+                // 它会将 "PLC_Feeder_A_ReadTrigger" 变成 "PLC_Feeder_A_ProductCode"
+                string targetTagName = ModbusKeyHelper.GetSibling(_triggerTagName, "ProductCode");
+
+                // 2. 从 DataBus 缓存中直接读取该点位的最新值
+                return _bus.GetValue(targetTagName);
+            }
+        }
+
+    }
+
+
+    public class FlipperProductProxy
+    {
+        private readonly DataBus _bus;
+        private readonly string _prefix; // 例如: "PLC_Flipper_A" 或 "PLC_Flipper_B"
+
+        public FlipperProductProxy(DataBus bus, string triggerTagName)
+        {
+            _bus = bus;
+            // 核心逻辑：利用 Helper 截取触发信号的前缀
+            // 输入: "PLC_Flipper_A_ReadTrigger" -> 得到: "PLC_Flipper_A"
+            // 输入: "PLC_Flipper_B_ReadTrigger" -> 得到: "PLC_Flipper_B"
+            _prefix = ModbusKeyHelper.GetDeviceNameFromTag(triggerTagName);
+        }
+
+        /// <summary>
+        /// 获取当前逻辑设备名 (如 "PLC_Flipper_A")
+        /// </summary>
+        public string DeviceName => _prefix;
+
+        /// <summary>
+        /// 动态获取当前触发面的所有产品码
+        /// 自动适配 A 面或 B 面
+        /// </summary>
+        public List<string> CurrentProductCodes
+        {
+            get
+            {
+                // 1. 拼接目标点位名: PLC_Flipper_A_ProductCode
+                string tagName = $"{_prefix}_ProductCode";
+
+                // 2. 获取数据
+                object val = _bus.GetValue(tagName);
+
+                // 3. 解析字符串列表
+                // 假设 PLC 传上来的是 "SN001,SN002" 这种格式，或者就是一个长字符串
+                if (val is string s && !string.IsNullOrWhiteSpace(s))
+                {
+                    // 兼容逗号、分号分隔，去除空白项
+                    return s.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                }
+                return new List<string>();
+            }
+        }
+
+        // --- 以下属性利用 Expression Body 动态获取对应点位值 ---
+
+        // 挂具码: PLC_Flipper_A_FixtureCode
+        public string FixtureCode => _bus.GetValue($"{_prefix}_FixtureCode")?.ToString() ?? string.Empty;
+
+        // 项目号: PLC_Flipper_A_ProjectNo
+        public string ProductProjectNo => _bus.GetValue($"{_prefix}_ProjectNo")?.ToString() ?? string.Empty;
+
+        // 产品类型/原料类别: PLC_Flipper_A_ProductType (或 MaterialCategory，视你具体需求而定)
+        // 这里映射到 ProductType，如需 MaterialCategory 请修改后缀
+        public string ProductCategory => _bus.GetValue($"{_prefix}_MaterialCategory")?.ToString() ?? string.Empty;
+
+        public string ProductColor => _bus.GetValue($"{_prefix}_ProductColor")?.ToString() ?? string.Empty;
+        // 辅助属性：获取当前是 A 面还是 B 面
+        public bool IsSideA => _prefix.EndsWith("A");
+    }
+}
