@@ -4,7 +4,8 @@ namespace BasicRegionNavigation.Core.Interfaces
 {
     public interface ITrafficController
     {
-        Task WaitAndAcquireLockAsync(int nodeId, string robotId);
-        void ReleaseLock(int nodeId, string robotId);
+        Task WaitAndAcquireLockAsync(int zoneId, string robotId);
+        void ReleaseLock(int zoneId, string robotId);
+        void ClearAllLocks();
     }
 }

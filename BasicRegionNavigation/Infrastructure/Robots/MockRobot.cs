@@ -1,8 +1,9 @@
+using BasicRegionNavigation.Common;
+using BasicRegionNavigation.Core.Entities;
+using BasicRegionNavigation.Core.Interfaces;
+using Core;
 using System;
 using System.Threading.Tasks;
-using BasicRegionNavigation.Core.Interfaces;
-using BasicRegionNavigation.Core.Entities;
-using BasicRegionNavigation.Common;
 
 namespace BasicRegionNavigation.Infrastructure.Robots
 {
@@ -59,20 +60,30 @@ namespace BasicRegionNavigation.Infrastructure.Robots
             SetState(RobotState.MOVING);
             _cancelFlag = false;
 
-            Console.WriteLine($"MockRobot {Id}: 开始向节点 {targetNode.Id} ({targetNode.X}, {targetNode.Y}) 移动...");
-            
-            // 请求目标节点的锁（新增超时捕获打破死锁）
-            try
+            // 获取起止点的交通管制区 ZoneId
+            int currentZoneId = Global.GetZoneId(CurrentNode);
+            int targetZoneId = Global.GetZoneId(targetNode.Id);
+
+            if (currentZoneId != targetZoneId)
             {
-                await _trafficController.WaitAndAcquireLockAsync(targetNode.Id, this.Id);
+                Console.WriteLine($"MockRobot {Id}: 准备跨区，正在申请目标管制区 Zone {targetZoneId} 的锁...");
+                // 请求目标管制区的锁（新增超时捕获打破死锁）
+                try
+                {
+                    await _trafficController.WaitAndAcquireLockAsync(targetZoneId, this.Id);
+                }
+                catch (BasicRegionNavigation.Applications.Controllers.ZoneLockTimeoutException ex)
+                {
+                    Console.WriteLine($"MockRobot { Id}: 发生系统级管制区超时死锁异常 - {ex.Message}");
+                    _cancelFlag = true;
+                    SetState(RobotState.ERROR);
+                    _onError?.Invoke("通信或物理占区超时(系统级严重死锁)，已抛出异常并取消任务");
+                    return;
+                }
             }
-            catch (System.TimeoutException ex)
+            else
             {
-                Console.WriteLine($"MockRobot {Id}: 发生死锁异常 - {ex.Message}");
-                _cancelFlag = true;
-                SetState(RobotState.ERROR);
-                _onError?.Invoke("调度死锁，已自动取消任务");
-                return;
+                Console.WriteLine($"MockRobot {Id}: 同区移动 (Zone {currentZoneId})，无需重复申请交通锁。");
             }
             
             double dx = targetNode.X - CurrentX;
@@ -117,17 +128,16 @@ namespace BasicRegionNavigation.Infrastructure.Robots
             {
                 CurrentX = targetNode.X;
                 CurrentY = targetNode.Y;
-                int previousNodeId = CurrentNode;
                 CurrentNode = targetNode.Id;
 
                 OnPositionChanged?.Invoke(CurrentX, CurrentY);
                 OnNodeChanged?.Invoke(CurrentNode);
 
-                // 【关键修复】先释放旧锁、打印日志，然后再通知外部状态变为 IDLE！
-                // 这样能杜绝倒装日志以及上层调度器过早插入新任务导致的时序混乱！
-                if (previousNodeId != CurrentNode) 
+                // 【重构修复】到达目标节点后，检查是否跨区。若是跨区，才释放旧管制区的锁。
+                if (currentZoneId != targetZoneId) 
                 {
-                    _trafficController.ReleaseLock(previousNodeId, this.Id);
+                    _trafficController.ReleaseLock(currentZoneId, this.Id);
+                    Console.WriteLine($"MockRobot {Id}: 已跨区完成，释放旧管制区 Zone {currentZoneId} 的锁。");
                 }
                 
                 Console.WriteLine($"MockRobot {Id}: 已到达节点 {CurrentNode}。");
@@ -137,12 +147,11 @@ namespace BasicRegionNavigation.Infrastructure.Robots
             else
             {
                 // 【修复：幽灵死锁漏洞】
-                // 车辆在移动途中发生错误（ERROR）或被强行取消时，它并没有抵达 targetNode。
-                // 但在派单起步时，它已经提前锁死了 targetNode，如果不释放，那个节点将永久变成不可通行的“幽灵死锁”节点！
-                // 释放掉未完成的终点锁，只保留当前由于它其实还停留在原地（或路上），所以保留住它原本的 CurrentNode 锁是合理的。
-                if (targetNode.Id != CurrentNode)
+                // 车辆在跨区移动途中发生错误（ERROR）或被强行取消时，由于它可能已抢先占用了 targetZoneId 的锁，
+                // 如果不释放，将会导致目标区域交通阻断。
+                if (currentZoneId != targetZoneId)
                 {
-                    _trafficController.ReleaseLock(targetNode.Id, this.Id);
+                    _trafficController.ReleaseLock(targetZoneId, this.Id);
                 }
             }
         }

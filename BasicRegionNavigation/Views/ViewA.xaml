@@ -58,10 +58,27 @@
                 <TextBlock Text="{Binding Robot1StateText}" VerticalAlignment="Center" FontSize="16" Foreground="Blue" FontWeight="Bold" Margin="0,0,10,0"/>
                 <TextBlock Text="{Binding Robot2StateText}" VerticalAlignment="Center" FontSize="16" Foreground="Red" FontWeight="Bold"/>
             </StackPanel>
+
+            <!-- 新增的 Zone 管制测试控制组 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,5">
+                <TextBlock Text="死锁预防测试:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,15,0" Foreground="#333"/>
+                <Button Content="[1] 测试走廊排队" ToolTip="模拟两车各自从左右两侧向中心狭长的 Zone 1 走廊进发，展示无死锁的正常交通排队" Command="{Binding TestCorridorCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E1F5FE" BorderBrush="#42A5F5"/>
+                <Button Content="[2] 测试路口拦截" ToolTip="模拟一车直行，一车横穿 Zone 2 的十字路口，验证侧向路权的互相拦截" Command="{Binding TestIntersectionCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E8F5E9" BorderBrush="#66BB6A"/>
+                <Button Content="[3] 测试互锁超时(异常)" ToolTip="人为构造极限漏洞：R1持Zone1要Zone2，R2持Zone2要Zone1，验证10秒后引擎能否触发超时异常打破死锁" Command="{Binding TestDeadlockCommand}" Height="30" Padding="15,0" FontSize="14" Background="#FFEBEE" BorderBrush="#EF5350" Foreground="#D32F2F"/>
+            </StackPanel>
         </StackPanel>
 
         <!-- 机器人模拟区域及微型路网 -->
         <Canvas Grid.Row="1" Grid.Column="0" Background="#F0F0F0" Margin="10" ClipToBounds="True">
+            
+            <!-- Zone 1 背景色区块 (交通走廊 Node 2,3,4) -->
+            <Rectangle Canvas.Left="210" Canvas.Top="70" Width="380" Height="60" Fill="#4042A5F5" Stroke="#42A5F5" StrokeThickness="2" StrokeDashArray="4,4" RadiusX="8" RadiusY="8" Panel.ZIndex="-1"/>
+            <TextBlock Canvas.Left="220" Canvas.Top="50" Text="Zone 1 (交通走廊 区长:节点2-4)" Foreground="#42A5F5" FontWeight="Bold" Panel.ZIndex="-1"/>
+
+            <!-- Zone 2 背景色区块 (十字路口 Node 6,7,8) -->
+            <Rectangle Canvas.Left="370" Canvas.Top="220" Width="60" Height="360" Fill="#4066BB6A" Stroke="#66BB6A" StrokeThickness="2" StrokeDashArray="4,4" RadiusX="8" RadiusY="8" Panel.ZIndex="-1"/>
+            <TextBlock Canvas.Left="440" Canvas.Top="220" Text="Zone 2 (十字路口核心)" Foreground="#66BB6A" FontWeight="Bold" Panel.ZIndex="-1"/>
+
             <!-- 渲染路网节点 -->
             <ItemsControl ItemsSource="{Binding MapNodes}">
                 <ItemsControl.ItemsPanel>

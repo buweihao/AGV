@@ -1,49 +1,69 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BasicRegionNavigation.Core.Interfaces;
 
 namespace BasicRegionNavigation.Applications.Controllers
 {
+    public class ZoneLockTimeoutException : Exception
+    {
+        public ZoneLockTimeoutException(string message) : base(message) { }
+    }
+
     public class TrafficController : ITrafficController
     {
-        private readonly Dictionary<int, string> _lockedNodes = new Dictionary<int, string>();
+        private readonly Dictionary<int, string> _lockedZones = new Dictionary<int, string>();
         private readonly object _lockObj = new object();
+        private readonly int _timeoutMs;
 
-        public async Task WaitAndAcquireLockAsync(int nodeId, string robotId)
+        public TrafficController(int timeoutMs = 10000)
+        {
+            _timeoutMs = timeoutMs;
+        }
+
+        public async Task WaitAndAcquireLockAsync(int zoneId, string robotId)
         {
             int retryCount = 0;
+            int maxRetries = _timeoutMs / 100;
+            
             while (true)
             {
                 lock (_lockObj)
                 {
-                    if (!_lockedNodes.ContainsKey(nodeId) || _lockedNodes[nodeId] == robotId)
+                    if (!_lockedZones.ContainsKey(zoneId) || _lockedZones[zoneId] == robotId)
                     {
-                        _lockedNodes[nodeId] = robotId;
+                        _lockedZones[zoneId] = robotId;
                         return; // 成功拿到锁
                     }
                 }
                 
-                // 等待后重新尝试
+                // 等待排队
                 await Task.Delay(100);
                 retryCount++;
 
-                // 如果等待超过了10秒 (100次*100ms)，证明发生了两车互相等待的死锁！
-                // 此时主动抛出异常来打断死锁链，让 MockRobot 进入 ERROR 状态并解开自己的锁。
-                if (retryCount > 100)
+                if (retryCount > maxRetries)
                 {
-                    throw new System.TimeoutException($"Deadlock: {robotId} wait for {nodeId} timeout!");
+                    throw new ZoneLockTimeoutException($"Zone Deadlock: {robotId} waiting for Zone {zoneId} has timed out.");
                 }
             }
         }
 
-        public void ReleaseLock(int nodeId, string robotId)
+        public void ReleaseLock(int zoneId, string robotId)
         {
             lock (_lockObj)
             {
-                if (_lockedNodes.ContainsKey(nodeId) && _lockedNodes[nodeId] == robotId)
+                if (_lockedZones.ContainsKey(zoneId) && _lockedZones[zoneId] == robotId)
                 {
-                    _lockedNodes.Remove(nodeId);
+                    _lockedZones.Remove(zoneId);
                 }
+            }
+        }
+
+        public void ClearAllLocks()
+        {
+            lock (_lockObj)
+            {
+                _lockedZones.Clear();
             }
         }
     }

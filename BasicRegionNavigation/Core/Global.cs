@@ -1,4 +1,4 @@
-﻿using BasicRegionNavigation.ViewModels; // 注意引用这个命名空间
+using BasicRegionNavigation.ViewModels; // 注意引用这个命名空间
 using CommunityToolkit.Mvvm.ComponentModel;
 using Dm.util;
 using LiveChartsCore;
@@ -20,6 +20,33 @@ namespace Core
 {
     public static partial class Global
     {
+
+        #region 交通管制区 (Zone) 映射配置
+        private static readonly Dictionary<int, int> _nodeToZoneMap = new Dictionary<int, int>
+        {
+            // 模拟一段狭长的单行带
+            { 2, 1 },
+            { 3, 1 },
+            { 4, 1 },
+            // 模拟十字路口区域
+            { 6, 2 },
+            { 7, 2 },
+            { 8, 2 }
+        };
+
+        /// <summary>
+        /// 获取节点对应的交通管制区 ID
+        /// </summary>
+        public static int GetZoneId(int nodeId)
+        {
+            if (_nodeToZoneMap.TryGetValue(nodeId, out int zoneId))
+            {
+                return zoneId;
+            }
+            // 不在特定管制区的节点，单独作为一个 Zone，避免相互干扰
+            return nodeId + 10000;
+        }
+        #endregion
 
         #region  配置文件
         public static ConfigHelper _config = new ConfigHelper("Core/config.json");
