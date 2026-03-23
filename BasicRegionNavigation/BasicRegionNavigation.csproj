@@ -12,6 +12,24 @@
 		<ApplicationIcon>EProject.ico</ApplicationIcon>
 	</PropertyGroup>
 	<ItemGroup>
+	  <Compile Remove="Configs\新文件夹\**" />
+	  <Compile Remove="新文件夹1\**" />
+	  <Compile Remove="新文件夹2\**" />
+	  <Compile Remove="新文件夹3\**" />
+	  <EmbeddedResource Remove="Configs\新文件夹\**" />
+	  <EmbeddedResource Remove="新文件夹1\**" />
+	  <EmbeddedResource Remove="新文件夹2\**" />
+	  <EmbeddedResource Remove="新文件夹3\**" />
+	  <None Remove="Configs\新文件夹\**" />
+	  <None Remove="新文件夹1\**" />
+	  <None Remove="新文件夹2\**" />
+	  <None Remove="新文件夹3\**" />
+	  <Page Remove="Configs\新文件夹\**" />
+	  <Page Remove="新文件夹1\**" />
+	  <Page Remove="新文件夹2\**" />
+	  <Page Remove="新文件夹3\**" />
+	</ItemGroup>
+	<ItemGroup>
 		<None Remove="EProject.ico" />
 		<None Remove="EProject.png" />
 		<None Remove="Resources\ArmPic.png" />
@@ -170,5 +188,10 @@
 	  <Reference Include="MyModbus">
 	    <HintPath>MyModbus.dll</HintPath>
 	  </Reference>
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Common\" />
+	  <Folder Include="Infrastructure\" />
+	  <Folder Include="Application\" />
 	</ItemGroup>
 </Project>

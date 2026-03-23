@@ -1,4 +1,5 @@
-﻿using BasicRegionNavigation.Controls;
+using BasicRegionNavigation.Controls;
+using BasicRegionNavigation.Core.Entities;
 using BasicRegionNavigation.Helper;
 using BasicRegionNavigation.Models;
 using BasicRegionNavigation.Services;
@@ -36,7 +37,47 @@ namespace BasicRegionNavigation.ViewModels
     // 修改 1: partial + ObservableObject
     public partial class ViewAViewModel : ObservableObject
     {
+        private List<BasicRegionNavigation.Core.Interfaces.IRobot> _robots;
+        private BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher _taskDispatcher;
 
+        [ObservableProperty]
+        private int _currentNode;
+
+        [ObservableProperty]
+        private LogicNode _targetNode;
+
+        [ObservableProperty]
+        private double _robot1X;
+
+        [ObservableProperty]
+        private double _robot1Y;
+
+        [ObservableProperty]
+        private string _robot1StateText = "状态: IDLE";
+
+        [ObservableProperty]
+        private double _robot2X;
+
+        [ObservableProperty]
+        private double _robot2Y;
+
+        [ObservableProperty]
+        private string _robot2StateText = "状态: IDLE";
+
+        [ObservableProperty]
+        private string _robotPositionText = "坐标实时监控已简化";
+
+        [ObservableProperty]
+        private string _robotErrorText;
+
+        [ObservableProperty]
+        private Visibility _robotErrorVisibility = Visibility.Collapsed;
+
+        [ObservableProperty]
+        private ObservableCollection<LogicNode> _mapNodes;
+
+        [ObservableProperty]
+        private ObservableCollection<TaskOrder> _activeTasks = new ObservableCollection<TaskOrder>();
 
         private readonly IAlarmHistoryService _alarmHistoryService;
         private readonly IModbusService _modbusService;
@@ -91,6 +132,68 @@ namespace BasicRegionNavigation.ViewModels
             _modbusService = modbusService;
             _alarmHistoryService = alarmHistoryService;
             _productionService = productionService; // 【新增】赋值
+
+            // 实例化 MapNodes 和路网
+            MapNodes = new ObservableCollection<LogicNode>
+            {
+                new LogicNode { Id = 1, X = 50, Y = 50, ConnectedNodeIds = new List<int> { 2, 4 } },
+                new LogicNode { Id = 2, X = 250, Y = 50, ConnectedNodeIds = new List<int> { 1, 3, 5 } },
+                new LogicNode { Id = 3, X = 250, Y = 250, ConnectedNodeIds = new List<int> { 2, 4, 6 } },
+                new LogicNode { Id = 4, X = 50, Y = 250, ConnectedNodeIds = new List<int> { 1, 3 } },
+                new LogicNode { Id = 5, X = 450, Y = 50, ConnectedNodeIds = new List<int> { 2, 6, 7 } },
+                new LogicNode { Id = 6, X = 450, Y = 250, ConnectedNodeIds = new List<int> { 3, 5, 8 } },
+                new LogicNode { Id = 7, X = 650, Y = 50, ConnectedNodeIds = new List<int> { 5, 8, 9 } },
+                new LogicNode { Id = 8, X = 650, Y = 250, ConnectedNodeIds = new List<int> { 6, 7, 10 } },
+                new LogicNode { Id = 9, X = 850, Y = 50, ConnectedNodeIds = new List<int> { 7, 10 } },
+                new LogicNode { Id = 10, X = 850, Y = 250, ConnectedNodeIds = new List<int> { 8, 9 } }
+            };
+
+            TargetNode = MapNodes.FirstOrDefault();
+
+            var trafficController = new BasicRegionNavigation.Applications.Controllers.TrafficController();
+
+            // 实例化两台小车，初始位置分别放在 Node 1 和 Node 3
+            var robot1 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
+                id: "AGV-1",
+                trafficController: trafficController,
+                onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot1StateText = $"状态: {state}"; }); },
+                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-1: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
+            );
+            robot1.CurrentNode = 1;
+            robot1.CurrentX = 50;
+            robot1.CurrentY = 50;
+            Robot1X = 50; Robot1Y = 50;
+            robot1.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot1X = x; Robot1Y = y; }); };
+
+            var robot2 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
+                id: "AGV-2",
+                trafficController: trafficController,
+                onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot2StateText = $"状态: {state}"; }); },
+                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-2: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
+            );
+            robot2.CurrentNode = 3;
+            robot2.CurrentX = 250;
+            robot2.CurrentY = 250;
+            Robot2X = 250; Robot2Y = 250;
+            robot2.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot2X = x; Robot2Y = y; }); };
+
+            // 初始占位申请
+            _ = trafficController.WaitAndAcquireLockAsync(1, "AGV-1");
+            _ = trafficController.WaitAndAcquireLockAsync(3, "AGV-2");
+
+            _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2 };
+
+            // 实例化 Dispatcher，接管车队
+            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes);
+            _taskDispatcher.OnTaskCompleted += (order) => 
+            {
+                Application.Current.Dispatcher.InvokeAsync(async () => 
+                {
+                    await Task.Delay(1000); // 留出1秒展示"已完成"
+                    ActiveTasks.Remove(order);
+                });
+            };
+
             // 1. 初始化所有模组 (假设有2个)
             InitializeModules(new[] { "1", "2" });
 
@@ -99,12 +202,6 @@ namespace BasicRegionNavigation.ViewModels
 
             InitializeSubscriptions(_modbusService);
 
-            //StartStatusAndCapacitySimulation();
-            //StartProductInfoSimulation();
-            //StartPieInfoSimulation();
-            //StartColumnInfoSimulation();
-            //StartWarningSimulation();
-            StartRealPieDataPolling();
         }
         private void StartRealPieDataPolling()
         {
@@ -552,6 +649,48 @@ namespace BasicRegionNavigation.ViewModels
 
         // ========================== 命令 ==========================
 
+        [RelayCommand]
+        private void DispatchTask()
+        {
+            var random = new Random();
+            int index = random.Next(MapNodes.Count);
+            int randomId = MapNodes[index].Id;
+
+            var order = new TaskOrder 
+            { 
+                TargetNodeId = randomId 
+            };
+
+            ActiveTasks.Add(order);
+
+            // 仅生成订单并交给调度系统
+            _taskDispatcher.SubmitTask(order);
+        }
+
+        [RelayCommand]
+        private void PauseRobot()
+        {
+            foreach (var r in _robots) (r as BasicRegionNavigation.Infrastructure.Robots.MockRobot)?.Pause();
+        }
+
+        [RelayCommand]
+        private void ResumeRobot()
+        {
+            foreach (var r in _robots) (r as BasicRegionNavigation.Infrastructure.Robots.MockRobot)?.Resume();
+        }
+
+        [RelayCommand]
+        private void CancelRobot()
+        {
+            foreach (var r in _robots) (r as BasicRegionNavigation.Infrastructure.Robots.MockRobot)?.Cancel();
+        }
+
+        [RelayCommand]
+        private void ResetRobot()
+        {
+            foreach (var r in _robots) (r as BasicRegionNavigation.Infrastructure.Robots.MockRobot)?.Reset();
+            RobotErrorVisibility = Visibility.Collapsed;
+        }
 
         [RelayCommand]
         private void ShowText(string param)
@@ -577,248 +716,6 @@ namespace BasicRegionNavigation.ViewModels
             // 更新传入模组的标签，而不是全局的 CurrentModule
             module.CurrentColumnInfo.XAxes[0].Labels = labels;
         }
-
-        #region 测试数据
-
-        private void StartStatusAndCapacitySimulation()
-        {
-            // 开启后台任务：模拟状态 (Status) 和 产能 (Capacity)
-            Task.Run(async () =>
-            {
-                var random = new Random();
-                while (true)
-                {
-                    await Task.Delay(1000); // 1秒刷新一次
-
-                    // 1. 构造 Status (状态) 数据
-                    var statusData = new Dictionary<string, int>
-            {
-                // ================= 修改部分开始 =================
-                // 将 int 状态 (0-3) 改为 bool 模拟 (0-1)
-                // random.Next(0, 2) 只会生成 0 或 1
-                // 1 = True (绿色), 0 = False (红色)
-                { "FeedStation1Status", random.Next(0, 2) },
-                { "FeedStation2Status", random.Next(0, 2) },
-                { "FeedStation3Status", random.Next(0, 2) },
-                { "HangerOkStation1Status", random.Next(0, 2) },
-                { "HangerOkStation2Status", random.Next(0, 2) },
-                { "HangerNgStationStatus", random.Next(0, 2) },
-                // ================= 修改部分结束 =================
-
-                // 机械手 (保持原样，可能有多种状态)
-                { "ProductRobotStatus", random.Next(0, 4) },
-                { "HangerRobotStatus", random.Next(0, 4) },
-
-                // 供料机与翻转台 (保持原样)
-                { "FeederAStatus", random.Next(0, 4) },
-                { "FeederBStatus", random.Next(0, 4) },
-                { "FlipperStatus", random.Next(0, 4) }
-            };
-                    // 2. 构造 Capacity (产能) 数据
-                    var capacityData = new Dictionary<string, int>
-            {
-                { "FeederACapacity", random.Next(100, 200) },
-                { "FeederBCapacity", random.Next(100, 200) },
-                { "FlipperCapacity", random.Next(50, 100) }
-            };
-
-                    // 3. 推送数据
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        HandleDataChanged("1", ModuleDataCategory.Status, statusData);
-                        HandleDataChanged("1", ModuleDataCategory.Capacity, capacityData);
-                    });
-                }
-            });
-        }
-
-        private void StartProductInfoSimulation()
-        {
-            // 开启后台任务：模拟产品信息 (ProductInfo)
-            Task.Run(async () =>
-            {
-                var random = new Random();
-                // 产品信息可能不需要像状态那样频繁刷新，这里设为 3 秒
-                while (true)
-                {
-                    await Task.Delay(3000);
-
-                    // 1. 构造产品信息字典
-                    // Key 必须对应 CurrentProductInfo 类中的 FieldMapping 配置
-                    var productData = new Dictionary<string, string>
-            {
-                { "ProjectCode", "PROJ-" + random.Next(1000, 9999) },   // 对应：项目编号
-                { "Material",    random.Next(0, 2) == 0 ? "铝合金" : "不锈钢" }, // 对应：原料
-                { "AnodeType",   "Type-" + (char)random.Next('A', 'F') }, // 对应：阳极类型
-                { "Color",       random.Next(0, 2) == 0 ? "黑色" : "银色" }  // 对应：颜色
-            };
-
-                    // 2. 推送数据
-                    // 这里假设 上挂(Up) 和 下挂(Dn) 显示相同的信息进行测试
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        // 推送给上挂产品信息
-                        HandleDataChanged("1", ModuleDataCategory.UpProductInfo, productData);
-
-                        // 推送给下挂产品信息
-                        HandleDataChanged("1", ModuleDataCategory.DnProductInfo, productData);
-                    });
-                }
-            });
-        }
-
-        private void StartPieInfoSimulation()
-        {
-            // 开启后台任务：模拟饼图数据 (PieInfo)
-            Task.Run(async () =>
-            {
-                var random = new Random();
-
-                while (true)
-                {
-                    await Task.Delay(2500); // 2.5秒刷新一次，避免闪烁过快
-
-                    // --- 1. 构造上挂饼图数据 ---
-                    // Key = 扇区名称, Value = 数值
-                    var upPieData = new Dictionary<string, int>
-            {
-                { "正常运行", random.Next(60, 100) },
-                { "设备待机", random.Next(10, 30) },
-                { "故障停机", random.Next(0, 15) },
-                { "换料暂停", random.Next(5, 20) }
-            };
-
-                    // --- 2. 构造下挂饼图数据 ---
-                    // 演示使用不同的分类名称
-                    var dnPieData = new Dictionary<string, int>
-            {
-                { "型号A", random.Next(100, 200) },
-                { "型号B", random.Next(50, 150) },
-                { "型号C", random.Next(20, 80) },
-                { "返工",   random.Next(0, 10) }
-            };
-
-                    // --- 3. 推送数据 ---
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        // 推送给上挂饼图 (对应 UpMyPieSeries)
-                        HandleDataChanged("1", ModuleDataCategory.UpPieInfo, upPieData);
-
-                        // 推送给下挂饼图 (对应 DnMyPieSeries)
-                        HandleDataChanged("1", ModuleDataCategory.DnPieInfo, dnPieData);
-                    });
-                }
-            });
-        }
-
-        private void StartColumnInfoSimulation()
-        {
-            // 开启后台任务：模拟柱状图数据 (ColumnInfo) 及 班次切换
-            Task.Run(async () =>
-            {
-                var random = new Random();
-                while (true)
-                {
-                    await Task.Delay(4000); // 4秒刷新一次，方便观察班次切换
-
-                    // --- 1. 随机生成一个小时 (0-23) 用于模拟当前时间 ---
-                    int simulatedHour = random.Next(0, 24);
-
-                    // --- 2. 判断班次并生成 X 轴标签 (每班 12 小时) ---
-                    // 白班定义：8:00 (含) ~ 20:00 (不含)
-                    bool isDayShift = simulatedHour >= 8 && simulatedHour < 20;
-                    string[] labels;
-
-                    if (isDayShift)
-                    {
-                        // 白班: 8, 9, 10 ... 19
-                        // 生成 8 到 19 的序列
-                        labels = Enumerable.Range(8, 12).Select(h => h.ToString()).ToArray();
-                    }
-                    else
-                    {
-                        // 夜班: 20, 21 ... 23, 0, 1 ... 7
-                        // 从 20 开始，循环 12 个小时
-                        var nightLabels = new List<string>();
-                        for (int i = 0; i < 12; i++)
-                        {
-                            int h = (20 + i) % 24; // 超过 24 取模
-                            nightLabels.Add(h.ToString());
-                        }
-                        labels = nightLabels.ToArray();
-                    }
-
-                    // --- 3. 构造 12 个柱状图数据 (模拟产能) ---
-                    var upValues = new double[12];
-                    var dnValues = new double[12];
-
-                    for (int i = 0; i < 12; i++)
-                    {
-                        // 模拟数据：随机生成 10~100 的产能
-                        // (可选优化：可以根据模拟时间只填充当前时间之前的柱子，这里简单填满)
-                        upValues[i] = random.Next(10, 100);
-                        dnValues[i] = random.Next(10, 100);
-                    }
-
-                    // --- 4. 更新 UI ---
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        // A. 推送柱状图数值 (通过 HandleDataChanged 标准流程)
-                        HandleDataChanged("1", ModuleDataCategory.UpColumnSeries, upValues);
-                        HandleDataChanged("1", ModuleDataCategory.DnColumnSeries, dnValues);
-
-                        // B. 直接更新 X 轴标签
-                        // 说明：这里直接操作 ViewModel 的属性来模拟 UpdateXLabelsByTime 的效果，
-                        // 从而避开 ModuleModel 默认逻辑中生成 "MM-dd" 格式标签的问题，符合您要求的简单数字格式。
-                        if (CurrentModule != null &&
-                            CurrentModule.CurrentColumnInfo != null &&
-                            CurrentModule.CurrentColumnInfo.XAxes != null &&
-                            CurrentModule.CurrentColumnInfo.XAxes.Length > 0)
-                        {
-                            // LiveCharts 的 Axis.Labels 支持直接赋值更新
-                            CurrentModule.CurrentColumnInfo.XAxes[0].Labels = labels;
-                        }
-                    });
-                }
-            });
-        }
-
-        private void StartWarningSimulation()
-        {
-            Task.Run(async () =>
-            {
-                var random = new Random();
-                while (true)
-                {
-                    await Task.Delay(1000); // 3秒刷新一次
-
-                    // 构造匿名对象，属性名必须与 _alarmConfig 的 Key 一致
-                    var warningData = new
-                    {
-                        // 随机触发一些报警 (10% 概率)
-                        FeederASensorFault = random.Next(0, 10) == 0,
-                        FeederATraceCommFault = random.Next(0, 10) == 0,
-
-                        FeederBSensorFault = random.Next(0, 10) == 0,
-                        FeederBMasterCommFault = random.Next(0, 10) == 0,
-
-                        FlipperDoorTriggered = random.Next(0, 10) == 0,
-                        FlipperEmergencyStop = random.Next(0, 20) == 0, // 5% 概率急停
-                        FlipperScannerCommFault = random.Next(0, 10) == 0
-                    };
-
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        // 推送报警数据
-                        HandleDataChanged("1", ModuleDataCategory.WarningInfo, warningData);
-                    });
-                }
-            });
-        }
-
-
-
-        #endregion
 
 
     }

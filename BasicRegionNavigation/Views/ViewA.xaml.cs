@@ -20,31 +20,9 @@ namespace BasicRegionNavigation.Views
         public ViewA()
         {
             InitializeComponent();
-            SetNavigateVisbility();
-            Task.Run(async () =>
-            {
-                while (true)
-                {
-                    await Task.Delay(1000);
-
-                    if (Global.Modules != Modules)
-                    {
-                        Modules = Global.Modules;
-                        SetNavigateVisbility();
-                    }
-                }
-            });
 
         }
 
-        private void SetNavigateVisbility()
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                模组1.Visibility = Modules >= 1 ? Visibility.Visible : Visibility.Hidden;
-                模组2.Visibility = Modules >= 2 ? Visibility.Visible : Visibility.Hidden;
-            });
-        }
 
 
         private void EditText_Click(object sender, RoutedEventArgs e)

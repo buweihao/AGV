@@ -168,19 +168,6 @@ namespace BasicRegionNavigation.ViewModels
             vm.SelectedTimes = "-";
         }
 
-        public void NotifyChanges(TableRowViewModel vm)
-        {
-            var coreModel = new Core.TableRowViewModel
-            {
-                ModuleNum = vm.ModuleNum,
-                UporDn = vm.Position,
-                ProjectCodes = vm.SelectedProject,
-                AnodeTypes = vm.SelectedAnodeType,
-                ProductColors = vm.SelectedProductColor,
-                MaterialTypes = vm.SelectedMaterialType,
-            };
-            _ea.GetEvent<MyDataUpdatedSettingEvent>().Publish(coreModel);
-        }
 
         // 保持原有的 ConfirmRowSettings 和 SendSetting2PLC 逻辑不变
         // ... (省略部分未变动的业务逻辑代码以节省篇幅) ...

@@ -63,7 +63,6 @@ namespace BasicRegionNavigation.ViewModels
         // ========================== 构造函数 ==========================
         public ICommand OpenDashboardCommand { get; }
         public MainWindowViewModel(
-            IMiddleFrameBusinessServices flipperHourlyCapacityService,
             IRegionManager regionManager, Func<DashboardWindow> dashboardFactory, IConfigService configService)
         {
             _regionManager = regionManager;
@@ -89,15 +88,8 @@ namespace BasicRegionNavigation.ViewModels
             Title_en = _configService.GetConfigValue("Title_en");
             OpenDashboardCommand = new MyModbus.RelayCommand(_ => OpenDashboard());
 
-            _flipperHourlyCapacityService = flipperHourlyCapacityService;
-            _flipperHourlyCapacityService.ProductCollectionMissionStart();
-            _flipperHourlyCapacityService.ChangeoverMissionStart();
-            _flipperHourlyCapacityService.ColorChangeMissionStart();
-            _flipperHourlyCapacityService.TimeSyncMissionStart();
-            _flipperHourlyCapacityService.StartCollectionTask(CollectionFrequency.Minutely);
         }
 
-        IMiddleFrameBusinessServices _flipperHourlyCapacityService;
 
         private void OpenDashboard()
         {

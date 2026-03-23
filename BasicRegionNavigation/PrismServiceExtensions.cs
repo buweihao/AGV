@@ -27,7 +27,7 @@ namespace BasicRegionNavigation.Helper
             // 2. 注册 SqlSugar 数据库
             RegisterDatabase(services);
 
-            // 3. 注册其他服务
+            // 3. 注册配置文件服务
             services.AddSingleton<IConfigService>(new ConfigService(new string[] { "Configs/config.json", "Configs/product_setting.json" }));
 
             // 4. 【关键】注册后台任务 (BackgroundService)
@@ -41,6 +41,7 @@ namespace BasicRegionNavigation.Helper
             services.AddMyLogService();
 
 
+            //注册一些自动依赖服务
             services.AddSingleton<IModbusService, ModbusService>();
             services.AddSingleton<IFlipperHourlyService, FlipperHourlyService>();
             services.AddSingleton<IUpDropHourlyService, UpDropHourlyService>();
