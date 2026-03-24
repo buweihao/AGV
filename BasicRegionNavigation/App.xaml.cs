@@ -12,6 +12,7 @@ using MyLog;
 using Prism.DryIoc; // 提供 GetContainer 扩展
 using Prism.Ioc;
 using Prism.Modularity;
+using Serilog;
 using SkiaSharp;
 using System;
 using System.Threading;
@@ -25,7 +26,27 @@ namespace BasicRegionNavigation
         public App()
         {
             InitializeComponent();
-            // 1. 注册全局异常捕获 
+
+            // 1. 全局初始化 Serilog
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug() // 设置最低日志级别
+                .Enrich.FromLogContext()
+                // 输出到 Visual Studio 调试窗口
+                .WriteTo.Debug(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                // 输出到控制台 (Console)
+                .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                // 异步输出到文件 (按天滚动保存，保留最近30天)
+                .WriteTo.Async(a => a.File(
+                    path: "logs/system_.log",
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 30,
+                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                .CreateLogger();
+
+            Log.Information("======== 应用程序启动 ========");
+
+
+            // 2. 注册全局异常捕获 
             GlobalExceptionHandler.Register();
         }
 
@@ -87,24 +108,19 @@ namespace BasicRegionNavigation
         // =========================================================
         protected override async void OnInitialized()
         {
-            // 必须先调用 base，否则 MainWindow 不会显示
-            base.OnInitialized();
-
-            var logConfigs = Container.Resolve<IEnumerable<IMyLogConfig>>();
-
-            // 从容器中解析出所有注册的 IHostedService
-            // 这会包含 EngineLifecycleManager, DbInitializationService 等
+            // 1. 先从容器中解析出所有注册的 IHostedService (含 MyLog, Modbus 等引擎)
             var hostedServices = Container.Resolve<IEnumerable<IHostedService>>();
-
             if (hostedServices != null)
             {
                 foreach (var service in hostedServices)
                 {
-                    // 手动触发启动，Modbus 引擎将在这里开始轮询
+                    // 手动触发启动，确保日志配置先生效
                     await service.StartAsync(CancellationToken.None);
                 }
             }
 
+            // 2. 引擎启动完毕后，再调用 base 初始化 UI 和 ViewModels
+            base.OnInitialized();
         }
 
 

@@ -1,6 +1,7 @@
 using BasicRegionNavigation.Common;
 using BasicRegionNavigation.Core.Entities;
 using BasicRegionNavigation.Core.Interfaces;
+using BasicRegionNavigation.Services;
 using Core;
 using System;
 using System.Threading.Tasks;
@@ -23,12 +24,19 @@ namespace BasicRegionNavigation.Infrastructure.Robots
         private Action<string> _onError;
         private bool _cancelFlag;
         private readonly ITrafficController _trafficController;
+        private readonly ILoggerService _logger; // 【新增】日志服务
         private readonly System.Collections.Generic.IEnumerable<LogicNode> _mapNodes;
 
-        public MockRobot(string id, ITrafficController trafficController, System.Collections.Generic.IEnumerable<LogicNode> mapNodes = null, Action<RobotState> onStateUpdate = null, Action<string> onError = null)
+        public MockRobot(string id, 
+                        ITrafficController trafficController, 
+                        ILoggerService logger, // 【新增】注入日志服务
+                        System.Collections.Generic.IEnumerable<LogicNode> mapNodes = null, 
+                        Action<RobotState> onStateUpdate = null, 
+                        Action<string> onError = null)
         {
             Id = id;
             _trafficController = trafficController;
+            _logger = logger;
             _mapNodes = mapNodes;
             _onStateUpdate = onStateUpdate;
             _onError = onError;
@@ -88,7 +96,7 @@ namespace BasicRegionNavigation.Infrastructure.Robots
                 return;
             }
 
-            Console.WriteLine($"MockRobot {Id}: A*算法已生成路线 -> [{string.Join(" -> ", System.Linq.Enumerable.Select(path, p => p.Id))}]");
+            Serilog.Log.Debug($"MockRobot {Id}: A*算法已生成路线 -> [{string.Join(" -> ", System.Linq.Enumerable.Select(path, p => p.Id))}]");
 
             // 2. 步进滚动式交管保护 (Rolling Lock)
             foreach (var nextNode in path)
@@ -123,8 +131,7 @@ namespace BasicRegionNavigation.Infrastructure.Robots
                 }
 
                 // 准备开始位移 (5 像素步进刷新法)
-                Console.WriteLine($"MockRobot {Id}: 离开节点 {CurrentNode} -> 步进驶向 {nextNode.Id}...");
-
+                Serilog.Log.Debug($"MockRobot {Id}: 离开节点 {CurrentNode} -> 步进驶向 {nextNode.Id}...");
                 while (true)
                 {
                     if (_cancelFlag) break;
@@ -180,7 +187,7 @@ namespace BasicRegionNavigation.Infrastructure.Robots
             if (!_cancelFlag)
             {
                 SetState(RobotState.IDLE);
-                Console.WriteLine($"MockRobot {Id}: 任务顺利完成，已回到 IDLE 状态。");
+                Serilog.Log.Debug($"MockRobot {Id}: 任务顺利完成，已回到 IDLE 状态。");
             }
         }
 

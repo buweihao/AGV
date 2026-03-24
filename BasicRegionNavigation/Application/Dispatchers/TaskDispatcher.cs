@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using BasicRegionNavigation.Core.Entities;
 using BasicRegionNavigation.Core.Interfaces;
 using BasicRegionNavigation.Common;
+using TaskStatus = BasicRegionNavigation.Core.Entities.TaskStatus;
 
 namespace BasicRegionNavigation.Applications.Dispatchers
 {
@@ -56,7 +57,7 @@ namespace BasicRegionNavigation.Applications.Dispatchers
 
                 var order = _orderQueue.Dequeue();
                 order.AssignedRobotId = idleRobot.Id;
-                order.Status = "预检避让处理中";
+                order.Status = TaskStatus.PreChecking;
 
                 var node = _mapNodes.FirstOrDefault(n => n.Id == order.TargetNodeId);
                 
@@ -120,10 +121,10 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             }
 
             // ====== 正式放行 ======
-            order.Status = "执行中";
+            order.Status = TaskStatus.Executing;
             await robot.GoToNodeAsync(node);
             
-            order.Status = "已完成";
+            order.Status = TaskStatus.Completed;
             order.IsCompleted = true;
             OnTaskCompleted?.Invoke(order);
 

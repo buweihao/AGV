@@ -30,6 +30,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using Expression = System.Linq.Expressions.Expression;
+using TaskStatus = BasicRegionNavigation.Core.Entities.TaskStatus;
 using Timer = System.Timers.Timer;
 
 namespace BasicRegionNavigation.ViewModels
@@ -135,8 +136,6 @@ namespace BasicRegionNavigation.ViewModels
             _alarmHistoryService = alarmHistoryService;
             _productionService = productionService; // 【新增】赋值
 
-            _loggerService.testDebug();
-
 
             // 初始化极限测试地图
             InitTestMap();
@@ -149,6 +148,7 @@ namespace BasicRegionNavigation.ViewModels
             var robot1 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-1",
                 trafficController: trafficController,
+                logger: _loggerService, // 【新增】传入日志服务
                 mapNodes: MapNodes,
                 onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot1StateText = $"状态: {state}"; }); },
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-1: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
@@ -163,6 +163,7 @@ namespace BasicRegionNavigation.ViewModels
             var robot2 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-2",
                 trafficController: trafficController,
+                logger: _loggerService, // 【新增】传入日志服务
                 mapNodes: MapNodes,
                 onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot2StateText = $"状态: {state}"; }); },
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-2: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
@@ -735,7 +736,7 @@ namespace BasicRegionNavigation.ViewModels
         {
             foreach (var id in nodeIds)
             {
-                var order = new TaskOrder { TargetNodeId = id, AssignedRobotId = robot.Id, Status = prefix };
+                var order = new TaskOrder { TargetNodeId = id, AssignedRobotId = robot.Id, Status = TaskStatus.Executing, StageDescription = prefix };
                 Application.Current.Dispatcher.Invoke(() => ActiveTasks.Add(order));
 
                 var node = MapNodes.FirstOrDefault(n => n.Id == id);
@@ -746,7 +747,8 @@ namespace BasicRegionNavigation.ViewModels
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    order.Status = "已到达/完成";
+                    order.Status = TaskStatus.Completed;
+                    order.StageDescription = "已到达";
                     order.IsCompleted = true;
                     // 一秒后自动移除 UI
                     Task.Run(async () =>

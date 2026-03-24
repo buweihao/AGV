@@ -166,7 +166,7 @@
                                             <TextBlock Text=" ➔ " Foreground="#888"/>
                                             <TextBlock Text="{Binding TargetNodeId, StringFormat='节点 {0}'}" Foreground="#555" FontWeight="Bold"/>
                                         </StackPanel>
-                                        <TextBlock Text="{Binding Status}" FontSize="12" Foreground="#2E8B57" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding StatusDisplayText}" FontSize="12" Foreground="#2E8B57" HorizontalAlignment="Right" FontWeight="SemiBold"/>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

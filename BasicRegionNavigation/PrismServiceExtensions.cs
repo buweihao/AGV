@@ -1,3 +1,5 @@
+using BasicRegionNavigation.Core.Interfaces;
+using BasicRegionNavigation.Core.Entities;
 using BasicRegionNavigation.Services;
 using Microsoft.Extensions.DependencyInjection;
 using MyDatabase;
@@ -39,13 +41,14 @@ namespace BasicRegionNavigation.Helper
 
             // 5.2 多配置注册机制：将所有实现 IMyLogConfig 的服务通过 DI 暴露出来
             // MyLogService 底层会尝试获取 IEnumerable<IMyLogConfig> 并合并 Sink
-
-            //services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<IProductionService>());        // 生产业务日志配置
-            //services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<IAlarmHistoryService>());      // 报警历史日志配置
-            //services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<LoggerService>());      // 报警历史日志配置
+            // 5.2 多配置注册机制
+            // 加上显式的强转 (IMyLogConfig)
+            services.AddSingleton<IMyLogConfig>(sp => (IMyLogConfig)sp.GetRequiredService<IProductionService>());
+            services.AddSingleton<IMyLogConfig>(sp => (IMyLogConfig)sp.GetRequiredService<IAlarmHistoryService>());
             // 启动日志引擎
             services.AddMyLogService();
 
+            services.AddSingleton<Services.ILoggerService, LoggerService>();
 
             //注册一些自动依赖服务
             services.AddSingleton<IModbusService, ModbusService>();
@@ -55,7 +58,7 @@ namespace BasicRegionNavigation.Helper
             services.AddSingleton<IMiddleFrameBusinessServices, MiddleFrameBusinessServices>();
             services.AddSingleton<IQueryService, QueryService>();
             services.AddSingleton<IAlarmHistoryService, AlarmHistoryService>();
-
+            services.AddSingleton<IDatabaseService, DatabaseService>();
 
         }
 
@@ -177,6 +180,8 @@ namespace BasicRegionNavigation.Helper
                 , typeof(UpDropHourlyRecord)
                 , typeof(DeviceLog)
                 , typeof(AlarmHistoryRecord)
+                , typeof(TaskHistory)
+                , typeof(SystemAlarm)
             );
 
             //上下料机小时产能入库
