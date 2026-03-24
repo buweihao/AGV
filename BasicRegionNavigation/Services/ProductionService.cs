@@ -39,6 +39,7 @@ namespace BasicRegionNavigation.Services
             _logRepo = logRepo;
             _prodRepo = prodRepo;
             _hourlyRepo = hourlyRepo;
+
         }
 
         public MyLogOptions Configure()

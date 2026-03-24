@@ -127,11 +127,16 @@ namespace BasicRegionNavigation.ViewModels
             { "FlipperScannerCommFault",  "翻转台-扫码枪通讯故障" }
         };
         private readonly IProductionService _productionService; // 【新增】注入生产服务
-        public ViewAViewModel(IModbusService modbusService, IProductionService productionService, IAlarmHistoryService alarmHistoryService)
+        private readonly ILoggerService _loggerService;
+        public ViewAViewModel(IModbusService modbusService, IProductionService productionService, IAlarmHistoryService alarmHistoryService, ILoggerService loggerService)
         {
+            _loggerService = loggerService;
             _modbusService = modbusService;
             _alarmHistoryService = alarmHistoryService;
             _productionService = productionService; // 【新增】赋值
+
+            _loggerService.testDebug();
+
 
             // 初始化极限测试地图
             InitTestMap();

@@ -1,4 +1,4 @@
-﻿using BasicRegionNavigation.Services;
+using BasicRegionNavigation.Services;
 using Microsoft.Extensions.DependencyInjection;
 using MyDatabase;
 using MyLog;
@@ -32,12 +32,18 @@ namespace BasicRegionNavigation.Helper
 
             // 4. 【关键】注册后台任务 (BackgroundService)
 
-            // 5. 配置 Log
-            // 将 IMyLogConfig 映射到已经注册的 IProductionService 实例
-            // 这样 MyLog 就会使用 IProductionService 中定义的配置
-            services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<IProductionService>());
+            // 5. 全局日志服务配置
+            // 5.1 注册独立的 ILoggerService 供业务代码注入调用
+            services.AddSingleton<LoggerService>();
+            services.AddSingleton<Services.ILoggerService>(sp => sp.GetRequiredService<LoggerService>());
 
-            // 注册 MyLog 服务
+            // 5.2 多配置注册机制：将所有实现 IMyLogConfig 的服务通过 DI 暴露出来
+            // MyLogService 底层会尝试获取 IEnumerable<IMyLogConfig> 并合并 Sink
+
+            services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<IProductionService>());        // 生产业务日志配置
+            services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<IAlarmHistoryService>());      // 报警历史日志配置
+            services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<LoggerService>());      // 报警历史日志配置
+            // 启动日志引擎
             services.AddMyLogService();
 
 
