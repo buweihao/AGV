@@ -12,6 +12,11 @@ namespace BasicRegionNavigation.Core.Interfaces
         Task InsertTaskHistoryAsync(TaskHistory history);
 
         /// <summary>
+        /// 更新任务历史记录 (完成/异常时回写状态和结束时间)
+        /// </summary>
+        Task UpdateTaskHistoryAsync(TaskHistory history);
+
+        /// <summary>
         /// 获取所有任务历史记录
         /// </summary>
         Task<List<TaskHistory>> GetTaskHistoriesAsync();

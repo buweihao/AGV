@@ -3,6 +3,7 @@ using BasicRegionNavigation.Core.Entities;
 using BasicRegionNavigation.Helper;
 using BasicRegionNavigation.Models;
 using BasicRegionNavigation.Services;
+using BasicRegionNavigation.Core.Interfaces;
 using CommunityToolkit.Mvvm.ComponentModel; // 核心引用
 using CommunityToolkit.Mvvm.Input;        // 核心引用
 using Core;
@@ -129,9 +130,11 @@ namespace BasicRegionNavigation.ViewModels
         };
         private readonly IProductionService _productionService; // 【新增】注入生产服务
         private readonly ILoggerService _loggerService;
-        public ViewAViewModel(IModbusService modbusService, IProductionService productionService, IAlarmHistoryService alarmHistoryService, ILoggerService loggerService)
+        private readonly IDatabaseService _databaseService; // 【新增】注入数据库服务
+        public ViewAViewModel(IModbusService modbusService, IProductionService productionService, IAlarmHistoryService alarmHistoryService, ILoggerService loggerService, IDatabaseService databaseService)
         {
             _loggerService = loggerService;
+            _databaseService = databaseService;
             _modbusService = modbusService;
             _alarmHistoryService = alarmHistoryService;
             _productionService = productionService; // 【新增】赋值
@@ -183,7 +186,7 @@ namespace BasicRegionNavigation.ViewModels
             _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2 };
 
             // 实例化 Dispatcher
-            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes);
+            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService);
             _taskDispatcher.OnTaskCompleted += (order) => 
             {
                 Application.Current.Dispatcher.InvokeAsync(async () => 
@@ -813,6 +816,73 @@ namespace BasicRegionNavigation.ViewModels
 
             _ = Task.Run(async () => { await ExecuteSequentialTasksAsync(r1, new[] { 0 }, "抢夺中心点"); });
             _ = Task.Run(async () => { await ExecuteSequentialTasksAsync(r2, new[] { 0 }, "抢夺中心点"); });
+        }
+
+        [RelayCommand]
+        private async Task RunTestOne_ZoneQueueing()
+        {
+            // ============================================================
+            // 第 1 步：重置沙盘 (Reset)
+            // ============================================================
+            // 1.1 清理 UI 任务列表
+            ActiveTasks.Clear();
+
+            // 1.2 获取流量控制器并强制清除所有底层残留锁
+            // (利用反射获取内部私有字段 _trafficController，确保干净重置)
+            var trafficCtrl = _robots[0].GetType().GetField("_trafficController", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.GetValue(_robots[0]) as BasicRegionNavigation.Core.Interfaces.ITrafficController;
+            trafficCtrl?.ClearAllLocks();
+
+            // 1.3 重新实例化调度器以清空队列与派发缓存 (彻底清空大脑)
+            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService);
+            _taskDispatcher.OnTaskCompleted += (order) =>
+            {
+                Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await Task.Delay(1000); // 预留完成状态展示时间
+                    ActiveTasks.Remove(order);
+                });
+            };
+
+            // ============================================================
+            // 第 2 步：初始化特定测试车辆 (Init Robots)
+            // ============================================================
+            var r1 = _robots[0] as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
+            var r2 = _robots[1] as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
+
+            // 强制恢复机器人运行状态，排除 ERROR 干扰
+            r1.Reset(); r2.Reset();
+
+            var node4 = MapNodes.FirstOrDefault(n => n.Id == 4);
+            var node5 = MapNodes.FirstOrDefault(n => n.Id == 5);
+
+            // 强行闪现到测试起点 (R1 在 4 号点外，R2 在 5 号点内)
+            r1.CurrentNode = 4; r1.CurrentX = node4.X; r1.CurrentY = node4.Y; Robot1X = node4.X; Robot1Y = node4.Y;
+            r2.CurrentNode = 5; r2.CurrentX = node5.X; r2.CurrentY = node5.Y; Robot2X = node5.X; Robot2Y = node5.Y;
+
+            // 重要：由于 R2 初始已经在管制区内部（Node 5），必须手动为其补上区域锁，模拟“正在占用”状态
+            // 否则 R1 会在 R2 还没动时就能非法闯入同一区域
+            if (trafficCtrl != null)
+            {
+                await trafficCtrl.WaitAndAcquireLockAsync(Global.GetZoneId(5), "AGV-2");
+            }
+
+            // ============================================================
+            // 第 3 步：下发测试任务 (Dispatch Tasks)
+            // ============================================================
+            // 3.1 下发任务 R2 (从 5 号点离开管制区去 3 号点)
+            var task2 = new TaskOrder { StartNodeId = 5, TargetNodeId = 3 };
+            ActiveTasks.Add(task2);
+            _taskDispatcher.SubmitTask(task2);
+
+            // 等待 200ms 确保调度引擎先处理 R2，拿到先后顺序
+            await Task.Delay(200);
+
+            // 3.2 下发任务 R1 (试图从 4 号点进入管制区去 6 号点)
+            // 预期结果：R1 会在 Node 4 停住，等待 R2 释放 Zone_A 的锁后方能通行
+            var task1 = new TaskOrder { StartNodeId = 4, TargetNodeId = 6 };
+            ActiveTasks.Add(task1);
+            _taskDispatcher.SubmitTask(task1);
         }
 
 

@@ -25,6 +25,11 @@ namespace BasicRegionNavigation.Services
             await _taskHistoryRepo.InsertAsync(history);
         }
 
+        public async Task UpdateTaskHistoryAsync(TaskHistory history)
+        {
+            await _taskHistoryRepo.UpdateAsync(history);
+        }
+
         public async Task<List<TaskHistory>> GetTaskHistoriesAsync()
         {
             // 获取所有记录，并将 IEnumerable 显式转换为 List

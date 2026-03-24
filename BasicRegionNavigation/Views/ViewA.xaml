@@ -62,6 +62,7 @@
             <!-- 新增的 Zone 管制测试控制组 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,5">
                 <TextBlock Text="死锁预防测试:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,15,0" Foreground="#333"/>
+                <Button Content="[0] 管制区排队测试" ToolTip="核心测试：R2 从 Zone_A 出去的同时，R1 在入口处排队等待" Command="{Binding RunTestOne_ZoneQueueingCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#FFF9C4" BorderBrush="#FBC02D"/>
                 <Button Content="[1] 测试旁路管制" ToolTip="模拟 AGV-1 与 AGV-2 在 Zone_A 管制区边缘的寻路与区域锁释放逻辑" Command="{Binding TestCorridorCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E1F5FE" BorderBrush="#42A5F5"/>
                 <Button Content="[2] 测试路口拦截" ToolTip="模拟南北(1->2)与东西(4->3)并发任务，验证中心节点(0)的交通拦截" Command="{Binding TestIntersectionCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E8F5E9" BorderBrush="#66BB6A"/>
                 <Button Content="[3] 测试中心死锁" ToolTip="强制两车同时抢占中心 Node 0，测试死锁规避或锁竞争逻辑" Command="{Binding TestDeadlockCommand}" Height="30" Padding="15,0" FontSize="14" Background="#FFEBEE" BorderBrush="#EF5350" Foreground="#D32F2F"/>
