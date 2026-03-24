@@ -8,6 +8,7 @@ using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MyLog;
 using Prism.DryIoc; // 提供 GetContainer 扩展
 using Prism.Ioc;
 using Prism.Modularity;
@@ -88,6 +89,9 @@ namespace BasicRegionNavigation
         {
             // 必须先调用 base，否则 MainWindow 不会显示
             base.OnInitialized();
+
+            var logConfigs = Container.Resolve<IEnumerable<IMyLogConfig>>();
+
             // 从容器中解析出所有注册的 IHostedService
             // 这会包含 EngineLifecycleManager, DbInitializationService 等
             var hostedServices = Container.Resolve<IEnumerable<IHostedService>>();

@@ -40,9 +40,9 @@ namespace BasicRegionNavigation.Helper
             // 5.2 多配置注册机制：将所有实现 IMyLogConfig 的服务通过 DI 暴露出来
             // MyLogService 底层会尝试获取 IEnumerable<IMyLogConfig> 并合并 Sink
 
-            services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<IProductionService>());        // 生产业务日志配置
-            services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<IAlarmHistoryService>());      // 报警历史日志配置
-            services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<LoggerService>());      // 报警历史日志配置
+            //services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<IProductionService>());        // 生产业务日志配置
+            //services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<IAlarmHistoryService>());      // 报警历史日志配置
+            //services.AddSingleton<IMyLogConfig>(sp => sp.GetRequiredService<LoggerService>());      // 报警历史日志配置
             // 启动日志引擎
             services.AddMyLogService();
 
