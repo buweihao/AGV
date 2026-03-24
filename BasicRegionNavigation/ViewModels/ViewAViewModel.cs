@@ -139,12 +139,12 @@ namespace BasicRegionNavigation.ViewModels
                 // 横向单行带区域：Node 2, 3, 4 (属于 Zone 1)
                 new LogicNode { Id = 1, X = 100, Y = 100, ConnectedNodeIds = new List<int> { 2 } }, // Zone 10001 (入口)
                 new LogicNode { Id = 2, X = 250, Y = 100, ConnectedNodeIds = new List<int> { 1, 3 } },
-                new LogicNode { Id = 3, X = 400, Y = 100, ConnectedNodeIds = new List<int> { 2, 4, 6 } },
+                new LogicNode { Id = 3, X = 400, Y = 100, ConnectedNodeIds = new List<int> { 2, 4, 6, 12 } },
                 new LogicNode { Id = 4, X = 550, Y = 100, ConnectedNodeIds = new List<int> { 3, 5 } },
-                new LogicNode { Id = 5, X = 700, Y = 100, ConnectedNodeIds = new List<int> { 4 } }, // Zone 10005 (出口)
+                new LogicNode { Id = 5, X = 700, Y = 100, ConnectedNodeIds = new List<int> { 4, 12 } }, // Zone 10005 (出口)
                 
                 // 纵向及十字路口区域：Node 6, 7, 8 (属于 Zone 2)
-                new LogicNode { Id = 6, X = 400, Y = 250, ConnectedNodeIds = new List<int> { 3, 7 } },
+                new LogicNode { Id = 6, X = 400, Y = 250, ConnectedNodeIds = new List<int> { 3, 7, 12 } },
                 new LogicNode { Id = 7, X = 400, Y = 400, ConnectedNodeIds = new List<int> { 6, 8, 9, 10 } },
                 new LogicNode { Id = 8, X = 400, Y = 550, ConnectedNodeIds = new List<int> { 7, 11 } },
                 new LogicNode { Id = 11, X = 400, Y = 650, ConnectedNodeIds = new List<int> { 8 } }, // Zone 10011 (向下脱离区)
@@ -154,29 +154,31 @@ namespace BasicRegionNavigation.ViewModels
                 new LogicNode { Id = 10, X = 700, Y = 400, ConnectedNodeIds = new List<int> { 7 } },
                 
                 // 专门用于动态避让的驻车湾 (Buffer Node)
-                new LogicNode { Id = 12, X = 470, Y = 160, ConnectedNodeIds = new List<int> { 3, 5, 6 } } 
+                new LogicNode { Id = 12, X = 470, Y = 160, IsBufferNode = true, ConnectedNodeIds = new List<int> { 3, 5, 6 } } 
             };
 
             TargetNode = MapNodes.FirstOrDefault();
 
             var trafficController = new BasicRegionNavigation.Applications.Controllers.TrafficController();
 
-            // 实例化两台小车，初始位置分别放在 Node 1 和 Node 3
+            // 实例化两台小车，并注入路网字典供 A* 寻路参考
             var robot1 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-1",
                 trafficController: trafficController,
+                mapNodes: MapNodes,
                 onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot1StateText = $"状态: {state}"; }); },
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-1: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
             );
             robot1.CurrentNode = 1;
-            robot1.CurrentX = 50;
-            robot1.CurrentY = 50;
-            Robot1X = 50; Robot1Y = 50;
+            robot1.CurrentX = 100;
+            robot1.CurrentY = 100;
+            Robot1X = 100; Robot1Y = 100;
             robot1.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot1X = x; Robot1Y = y; }); };
 
             var robot2 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-2",
                 trafficController: trafficController,
+                mapNodes: MapNodes,
                 onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot2StateText = $"状态: {state}"; }); },
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-2: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
             );

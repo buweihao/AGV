@@ -8,6 +8,9 @@ namespace BasicRegionNavigation.Core.Entities
         public double X { get; set; }
         public double Y { get; set; }
         
+        // 专职避让路点
+        public bool IsBufferNode { get; set; } = false;
+
         // 相邻节点列表
         public List<int> ConnectedNodeIds { get; set; } = new List<int>();
     }

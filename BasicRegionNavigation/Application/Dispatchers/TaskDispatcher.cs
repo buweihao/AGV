@@ -87,9 +87,17 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     Console.WriteLine($"[调度引擎] 发现 {occupantRobot.Id} 闲置占用了 {robot.Id} 的终点节点 {node.Id}，实施联动避让...");
                     
                     // 寻找此终点的空闲相邻节点作为避让停车湾 (Buffer Node)
-                    var bufferNode = _mapNodes.FirstOrDefault(n => 
-                        (node.ConnectedNodeIds.Contains(n.Id) || n.ConnectedNodeIds.Contains(node.Id))
-                        && !_robots.Any(r => r.CurrentNode == n.Id));
+                    var bufferCandidates = _mapNodes
+                        .Where(n => (node.ConnectedNodeIds.Contains(n.Id) || n.ConnectedNodeIds.Contains(node.Id))
+                                    && !_robots.Any(r => r.CurrentNode == n.Id))
+                        .ToList();
+
+                    // 优先选择专职的 IsBufferNode
+                    var bufferNode = bufferCandidates.FirstOrDefault(n => n.IsBufferNode);
+                    if (bufferNode == null)
+                    {
+                        bufferNode = bufferCandidates.FirstOrDefault(); // 退而求其次选择普通空闲节点
+                    }
 
                     if (bufferNode != null)
                     {
