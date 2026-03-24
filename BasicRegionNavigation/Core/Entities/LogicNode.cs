@@ -11,6 +11,12 @@ namespace BasicRegionNavigation.Core.Entities
         // 专职避让路点
         public bool IsBufferNode { get; set; } = false;
 
+        // 区域管制名称 (如 Zone_A)
+        public string ZoneName { get; set; }
+
+        // 节点类型 (如 Normal, Charging, Safety)
+        public string NodeType { get; set; } = "Normal";
+
         // 相邻节点列表
         public List<int> ConnectedNodeIds { get; set; } = new List<int>();
     }

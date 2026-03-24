@@ -179,12 +179,8 @@ namespace BasicRegionNavigation.Infrastructure.Robots
 
             if (!_cancelFlag)
             {
-                // 车辆在跨区移动途中发生错误（ERROR）或被强行取消时，由于它可能已抢先占用了 targetZoneId 的锁，
-                // 如果不释放，将会导致目标区域交通阻断。
-                if (currentZoneId != targetZoneId)
-                {
-                    _trafficController.ReleaseLock(targetZoneId, this.Id);
-                }
+                SetState(RobotState.IDLE);
+                Console.WriteLine($"MockRobot {Id}: 任务顺利完成，已回到 IDLE 状态。");
             }
         }
 

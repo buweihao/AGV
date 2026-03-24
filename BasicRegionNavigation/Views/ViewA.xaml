@@ -62,22 +62,30 @@
             <!-- 新增的 Zone 管制测试控制组 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,5">
                 <TextBlock Text="死锁预防测试:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,15,0" Foreground="#333"/>
-                <Button Content="[1] 测试走廊排队" ToolTip="模拟两车各自从左右两侧向中心狭长的 Zone 1 走廊进发，展示无死锁的正常交通排队" Command="{Binding TestCorridorCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E1F5FE" BorderBrush="#42A5F5"/>
-                <Button Content="[2] 测试路口拦截" ToolTip="模拟一车直行，一车横穿 Zone 2 的十字路口，验证侧向路权的互相拦截" Command="{Binding TestIntersectionCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E8F5E9" BorderBrush="#66BB6A"/>
-                <Button Content="[3] 测试互锁超时(异常)" ToolTip="人为构造极限漏洞：R1持Zone1要Zone2，R2持Zone2要Zone1，验证10秒后引擎能否触发超时异常打破死锁" Command="{Binding TestDeadlockCommand}" Height="30" Padding="15,0" FontSize="14" Background="#FFEBEE" BorderBrush="#EF5350" Foreground="#D32F2F"/>
+                <Button Content="[1] 测试旁路管制" ToolTip="模拟 AGV-1 与 AGV-2 在 Zone_A 管制区边缘的寻路与区域锁释放逻辑" Command="{Binding TestCorridorCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E1F5FE" BorderBrush="#42A5F5"/>
+                <Button Content="[2] 测试路口拦截" ToolTip="模拟南北(1->2)与东西(4->3)并发任务，验证中心节点(0)的交通拦截" Command="{Binding TestIntersectionCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E8F5E9" BorderBrush="#66BB6A"/>
+                <Button Content="[3] 测试中心死锁" ToolTip="强制两车同时抢占中心 Node 0，测试死锁规避或锁竞争逻辑" Command="{Binding TestDeadlockCommand}" Height="30" Padding="15,0" FontSize="14" Background="#FFEBEE" BorderBrush="#EF5350" Foreground="#D32F2F"/>
             </StackPanel>
         </StackPanel>
 
         <!-- 机器人模拟区域及微型路网 -->
         <Canvas Grid.Row="1" Grid.Column="0" Background="#F0F0F0" Margin="10" ClipToBounds="True">
             
-            <!-- Zone 1 背景色区块 (交通走廊 Node 2,3,4) -->
-            <Rectangle Canvas.Left="210" Canvas.Top="70" Width="380" Height="60" Fill="#4042A5F5" Stroke="#42A5F5" StrokeThickness="2" StrokeDashArray="4,4" RadiusX="8" RadiusY="8" Panel.ZIndex="-1"/>
-            <TextBlock Canvas.Left="220" Canvas.Top="50" Text="Zone 1 (交通走廊 区长:节点2-4)" Foreground="#42A5F5" FontWeight="Bold" Panel.ZIndex="-1"/>
+            <!-- 极限测试地图背景装饰 -->
+            <Rectangle Canvas.Left="100" Canvas.Top="100" Width="400" Height="40" Fill="#2042A5F5" Stroke="#4042A5F5" StrokeThickness="1" StrokeDashArray="4,4" RadiusX="10" RadiusY="10" Panel.ZIndex="-1"/>
+            <TextBlock Canvas.Left="260" Canvas.Top="75" Text="Zone_A 管制区" Foreground="#42A5F5" FontWeight="Bold" FontSize="12" Panel.ZIndex="-1"/>
 
-            <!-- Zone 2 背景色区块 (十字路口 Node 6,7,8) -->
-            <Rectangle Canvas.Left="370" Canvas.Top="220" Width="60" Height="360" Fill="#4066BB6A" Stroke="#66BB6A" StrokeThickness="2" StrokeDashArray="4,4" RadiusX="8" RadiusY="8" Panel.ZIndex="-1"/>
-            <TextBlock Canvas.Left="440" Canvas.Top="220" Text="Zone 2 (十字路口核心)" Foreground="#66BB6A" FontWeight="Bold" Panel.ZIndex="-1"/>
+            <!-- 绘制地图连线 (硬编码以符合 Sprint 1 拓扑) -->
+            <Canvas Panel.ZIndex="0">
+                <Line X1="300" Y1="300" X2="300" Y2="100" Stroke="#CCC" StrokeThickness="4"/> <!-- 0-1 -->
+                <Line X1="300" Y1="300" X2="300" Y2="500" Stroke="#CCC" StrokeThickness="4"/> <!-- 0-2 -->
+                <Line X1="300" Y1="300" X2="500" Y2="300" Stroke="#CCC" StrokeThickness="4"/> <!-- 0-3 -->
+                <Line X1="300" Y1="300" X2="100" Y2="300" Stroke="#CCC" StrokeThickness="4"/> <!-- 0-4 -->
+                <Line X1="100" Y1="300" X2="100" Y2="100" Stroke="#CCC" StrokeThickness="4"/> <!-- 4-5 -->
+                <Line X1="100" Y1="100" X2="500" Y2="100" Stroke="#CCC" StrokeThickness="4"/> <!-- 5-6 -->
+                <Line X1="500" Y1="100" X2="500" Y2="300" Stroke="#CCC" StrokeThickness="4"/> <!-- 6-3 -->
+                <Line X1="300" Y1="500" X2="500" Y2="500" Stroke="#CCC" StrokeThickness="4"/> <!-- 2-7 -->
+            </Canvas>
 
             <!-- 渲染路网节点 -->
             <ItemsControl ItemsSource="{Binding MapNodes}">
@@ -94,10 +102,26 @@
                 </ItemsControl.ItemContainerStyle>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Grid Margin="-15,-15,0,0" Width="80" Height="40">
-                            <Ellipse Width="30" Height="30" Fill="Gray" Stroke="DarkGray" StrokeThickness="2" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-                            <TextBlock Text="{Binding Id, StringFormat='节点 {0}'}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="35,5,0,0" FontWeight="Bold" Foreground="Black"/>
+                        <Grid Margin="-15,-15,0,0" Width="80" Height="40" ToolTip="{Binding ZoneName}">
+                            <Ellipse x:Name="NodeElement" Width="30" Height="30" Fill="#BDC3C7" Stroke="#95A5A6" StrokeThickness="2" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                            <TextBlock Text="{Binding Id}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,5,0,0" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="{Binding Id, StringFormat='节点 {0}'}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="35,5,0,0" FontWeight="Bold" Foreground="#2C3E50"/>
                         </Grid>
+                        <DataTemplate.Triggers>
+                            <!-- 特殊节点着色 -->
+                            <DataTrigger Binding="{Binding NodeType}" Value="Charging">
+                                <Setter TargetName="NodeElement" Property="Fill" Value="#2ECC71"/>
+                                <Setter TargetName="NodeElement" Property="Stroke" Value="#27AE60"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ZoneName}" Value="Zone_A">
+                                <Setter TargetName="NodeElement" Property="Fill" Value="#3498DB"/>
+                                <Setter TargetName="NodeElement" Property="Stroke" Value="#2980B9"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Id}" Value="0">
+                                <Setter TargetName="NodeElement" Property="Fill" Value="#E74C3C"/>
+                                <Setter TargetName="NodeElement" Property="Stroke" Value="#C0392B"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

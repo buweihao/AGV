@@ -133,35 +133,14 @@ namespace BasicRegionNavigation.ViewModels
             _alarmHistoryService = alarmHistoryService;
             _productionService = productionService; // 【新增】赋值
 
-            // 实例化 MapNodes 和路网（重置为人为设计的十字路口+单行带结构）
-            MapNodes = new ObservableCollection<LogicNode>
-            {
-                // 横向单行带区域：Node 2, 3, 4 (属于 Zone 1)
-                new LogicNode { Id = 1, X = 100, Y = 100, ConnectedNodeIds = new List<int> { 2 } }, // Zone 10001 (入口)
-                new LogicNode { Id = 2, X = 250, Y = 100, ConnectedNodeIds = new List<int> { 1, 3 } },
-                new LogicNode { Id = 3, X = 400, Y = 100, ConnectedNodeIds = new List<int> { 2, 4, 6, 12 } },
-                new LogicNode { Id = 4, X = 550, Y = 100, ConnectedNodeIds = new List<int> { 3, 5 } },
-                new LogicNode { Id = 5, X = 700, Y = 100, ConnectedNodeIds = new List<int> { 4, 12 } }, // Zone 10005 (出口)
-                
-                // 纵向及十字路口区域：Node 6, 7, 8 (属于 Zone 2)
-                new LogicNode { Id = 6, X = 400, Y = 250, ConnectedNodeIds = new List<int> { 3, 7, 12 } },
-                new LogicNode { Id = 7, X = 400, Y = 400, ConnectedNodeIds = new List<int> { 6, 8, 9, 10 } },
-                new LogicNode { Id = 8, X = 400, Y = 550, ConnectedNodeIds = new List<int> { 7, 11 } },
-                new LogicNode { Id = 11, X = 400, Y = 650, ConnectedNodeIds = new List<int> { 8 } }, // Zone 10011 (向下脱离区)
-                
-                // 十字路口的横向外延 (安全区)
-                new LogicNode { Id = 9, X = 100, Y = 400, ConnectedNodeIds = new List<int> { 7 } },
-                new LogicNode { Id = 10, X = 700, Y = 400, ConnectedNodeIds = new List<int> { 7 } },
-                
-                // 专门用于动态避让的驻车湾 (Buffer Node)
-                new LogicNode { Id = 12, X = 470, Y = 160, IsBufferNode = true, ConnectedNodeIds = new List<int> { 3, 5, 6 } } 
-            };
+            // 初始化极限测试地图
+            InitTestMap();
 
             TargetNode = MapNodes.FirstOrDefault();
 
             var trafficController = new BasicRegionNavigation.Applications.Controllers.TrafficController();
 
-            // 实例化两台小车，并注入路网字典供 A* 寻路参考
+            // 实例化两台小车
             var robot1 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-1",
                 trafficController: trafficController,
@@ -169,10 +148,11 @@ namespace BasicRegionNavigation.ViewModels
                 onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot1StateText = $"状态: {state}"; }); },
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-1: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
             );
-            robot1.CurrentNode = 1;
+            // 放在西侧节点 4
+            robot1.CurrentNode = 4;
             robot1.CurrentX = 100;
-            robot1.CurrentY = 100;
-            Robot1X = 100; Robot1Y = 100;
+            robot1.CurrentY = 300;
+            Robot1X = 100; Robot1Y = 300;
             robot1.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot1X = x; Robot1Y = y; }); };
 
             var robot2 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
@@ -182,21 +162,21 @@ namespace BasicRegionNavigation.ViewModels
                 onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot2StateText = $"状态: {state}"; }); },
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-2: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
             );
+            // 放在东侧节点 3
             robot2.CurrentNode = 3;
-            robot2.CurrentX = 250;
-            robot2.CurrentY = 250;
-            Robot2X = 250; Robot2Y = 250;
+            robot2.CurrentX = 500;
+            robot2.CurrentY = 300;
+            Robot2X = 500; Robot2Y = 300;
             robot2.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot2X = x; Robot2Y = y; }); };
 
             // 初始占位申请（按 Zone 级别锁定）
-            int zoneId1 = Global.GetZoneId(1);
-            int zoneId2 = Global.GetZoneId(3);
-            _ = trafficController.WaitAndAcquireLockAsync(zoneId1, "AGV-1");
-            _ = trafficController.WaitAndAcquireLockAsync(zoneId2, "AGV-2");
+            // 注意：新地图中 Node 4, 3 不在特定 Zone(ZoneName) 中, 之前版本可能通过 Global.GetZoneId 处理
+            _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneId(4), "AGV-1");
+            _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneId(3), "AGV-2");
 
             _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2 };
 
-            // 实例化 Dispatcher，接管车队
+            // 实例化 Dispatcher
             _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes);
             _taskDispatcher.OnTaskCompleted += (order) => 
             {
@@ -207,15 +187,58 @@ namespace BasicRegionNavigation.ViewModels
                 });
             };
 
-            // 1. 初始化所有模组 (假设有2个)
+            // 初始化模组服务等
             InitializeModules(new[] { "1", "2" });
-
-            // 2. 【核心】单一入口监听
             _modbusService.OnModuleDataChanged += HandleDataChanged;
-
             InitializeSubscriptions(_modbusService);
-
         }
+
+        /// <summary>
+        /// 硬编码极限测试地图 (Sprint 1 专用)
+        /// 中心十字架构 + 旁路管控区 + 充电区
+        /// </summary>
+        private void InitTestMap()
+        {
+            var nodes = new ObservableCollection<LogicNode>();
+
+            // 1. 中心十字交汇区 (用于测试死锁)
+            nodes.Add(new LogicNode { Id = 0, X = 300, Y = 300 }); // 中心点
+            nodes.Add(new LogicNode { Id = 1, X = 300, Y = 100 }); // 北
+            nodes.Add(new LogicNode { Id = 2, X = 300, Y = 500 }); // 南
+            nodes.Add(new LogicNode { Id = 3, X = 500, Y = 300 }); // 东
+            nodes.Add(new LogicNode { Id = 4, X = 100, Y = 300 }); // 西
+
+            // 2. 旁路与管制区 (Zone_A)
+            nodes.Add(new LogicNode { Id = 5, X = 100, Y = 100, ZoneName = "Zone_A" }); // 西北
+            nodes.Add(new LogicNode { Id = 6, X = 500, Y = 100, ZoneName = "Zone_A" }); // 东北
+
+            // 3. 充电/安全区
+            nodes.Add(new LogicNode { Id = 7, X = 500, Y = 500, NodeType = "Charging" }); // 充电桩
+
+            // 建立双向连接边
+            // 中心节点十字连接
+            AddEdge(nodes[0], nodes[1]);
+            AddEdge(nodes[0], nodes[2]);
+            AddEdge(nodes[0], nodes[3]);
+            AddEdge(nodes[0], nodes[4]);
+
+            // 管制区旁路 (4 -> 5 -> 6 -> 3)
+            AddEdge(nodes[4], nodes[5]);
+            AddEdge(nodes[5], nodes[6]);
+            AddEdge(nodes[6], nodes[3]);
+
+            // 充电桩 (仅连南侧)
+            AddEdge(nodes[2], nodes[7]);
+
+            MapNodes = nodes;
+        }
+
+        private void AddEdge(LogicNode a, LogicNode b)
+        {
+            if (!a.ConnectedNodeIds.Contains(b.Id)) a.ConnectedNodeIds.Add(b.Id);
+            if (!b.ConnectedNodeIds.Contains(a.Id)) b.ConnectedNodeIds.Add(a.Id);
+        }
+
         private void StartRealPieDataPolling()
         {
             Task.Run(async () =>
@@ -733,19 +756,18 @@ namespace BasicRegionNavigation.ViewModels
         [RelayCommand]
         private void TestCorridor()
         {
-            ClearAndSetRobots(1, 5); // AGV1 在左侧节点1，AGV2 在右侧节点5
+            // 测试目标：验证区域锁 (Zone_A) 和旁路路径
+            // AGV-1 从西侧(4)前往东侧(3), AGV-2 从东北(6)前往西北(5)
+            ClearAndSetRobots(4, 6); 
 
-            // 派发任务：两车直接向对方所在的端点发起冲锋！
-            // 测试目标：验证当终点被占有时，能否触发 联动避让 (驱赶对方去 Node 12 或 Node 4)
-            var t1 = new TaskOrder { TargetNodeId = 5 };
+            var t1 = new TaskOrder { TargetNodeId = 3, AssignedRobotId = "AGV-1" };
             ActiveTasks.Add(t1);
             _taskDispatcher.SubmitTask(t1);
 
-            // 稍微延迟半秒再发第二个任务，使得 AGV1 成为“驱赶者”，AGV2 成为被逼迫进“停车湾”的车辆。
             Task.Run(async () => 
             {
                 await Task.Delay(500); 
-                var t2 = new TaskOrder { TargetNodeId = 1 };
+                var t2 = new TaskOrder { TargetNodeId = 5, AssignedRobotId = "AGV-2" };
                 Application.Current.Dispatcher.Invoke(() => {
                     ActiveTasks.Add(t2);
                     _taskDispatcher.SubmitTask(t2);
@@ -756,33 +778,34 @@ namespace BasicRegionNavigation.ViewModels
         [RelayCommand]
         private void TestIntersection()
         {
-            ClearAndSetRobots(3, 9); // 一辆在上方路口前(Zone 1)，一辆在左侧路口前(单独Zone)
+            // 测试目标：十字路口相交寻路与管制
+            // R1: 北(1) -> 南(2); R2: 西(4) -> 东(3)
+            ClearAndSetRobots(1, 4); 
 
             var r1 = _robots[0] as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
             var r2 = _robots[1] as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
 
-            // R1: 3 -> 8(进入Zone2) -> 11(驶离Zone2)
-            // R2: 9 -> 7(进入Zone2) -> 10(驶离Zone2)
-            _ = Task.Run(async () => { await ExecuteSequentialTasksAsync(r1, new[] { 8, 11 }, "直行经过路口"); });
+            _ = Task.Run(async () => { await ExecuteSequentialTasksAsync(r1, new[] { 0, 2 }, "南北贯穿"); });
 
             _ = Task.Run(async () =>
             {
-                await Task.Delay(300);
-                await ExecuteSequentialTasksAsync(r2, new[] { 7, 10 }, "横穿经过路口");
+                await Task.Delay(800);
+                await ExecuteSequentialTasksAsync(r2, new[] { 0, 3 }, "东西横跨");
             });
         }
 
         [RelayCommand]
         private void TestDeadlock()
         {
-            ClearAndSetRobots(3, 6); // R1 在走廊 Zone 1，R2 在十字路口入口 Zone 2
+            // 测试目标：中心点死锁冲锋
+            // R1(北) 和 R2(南) 同时冲向中心点(0)
+            ClearAndSetRobots(1, 2); 
 
             var r1 = _robots[0] as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
             var r2 = _robots[1] as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
 
-            // R1 从 Zone 1 冲向 Zone 2； R2 从 Zone 2 冲向 Zone 1
-            _ = Task.Run(async () => { await ExecuteSequentialTasksAsync(r1, new[] { 7 }, "互锁冲锋"); });
-            _ = Task.Run(async () => { await ExecuteSequentialTasksAsync(r2, new[] { 4 }, "互锁冲锋"); });
+            _ = Task.Run(async () => { await ExecuteSequentialTasksAsync(r1, new[] { 0 }, "抢夺中心点"); });
+            _ = Task.Run(async () => { await ExecuteSequentialTasksAsync(r2, new[] { 0 }, "抢夺中心点"); });
         }
 
 
