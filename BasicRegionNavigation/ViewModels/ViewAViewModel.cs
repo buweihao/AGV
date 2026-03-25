@@ -67,6 +67,15 @@ namespace BasicRegionNavigation.ViewModels
         private string _robot2StateText = "状态: IDLE";
 
         [ObservableProperty]
+        private double _robot3X;
+
+        [ObservableProperty]
+        private double _robot3Y;
+
+        [ObservableProperty]
+        private string _robot3StateText = "状态: IDLE";
+
+        [ObservableProperty]
         private string _robotPositionText = "坐标实时监控已简化";
 
         [ObservableProperty]
@@ -883,6 +892,104 @@ namespace BasicRegionNavigation.ViewModels
             var task1 = new TaskOrder { StartNodeId = 4, TargetNodeId = 6 };
             ActiveTasks.Add(task1);
             _taskDispatcher.SubmitTask(task1);
+        }
+
+        /// <summary>
+        /// 核心测试二：就近分配与搬运任务验证
+        /// 
+        /// 【预期现象】
+        /// 1. 三台车同时空闲：R1(Node4, 100,300), R2(Node0, 300,300), R3(Node3, 500,300)
+        /// 2. 下发任务：StartNodeId=6(500,100), TargetNodeId=7(500,500)
+        /// 3. 调度引擎计算每辆车到起点 Node6 的直线距离：
+        ///    - R1(100,300) → Node6(500,100): √(400²+200²) ≈ 447
+        ///    - R2(300,300) → Node6(500,100): √(200²+200²) ≈ 283
+        ///    - R3(500,300) → Node6(500,100): √(0²+200²) = 200  ← 最近！
+        /// 4. 因此只有 R3 会被选中，先移动到 Node6 取货，再移动到 Node7 卸货
+        /// 5. R1 和 R2 全程保持静止不动
+        /// </summary>
+        [RelayCommand]
+        private async Task RunTestTwo_NearestAllocation()
+        {
+            // ============================================================
+            // 第 1 步：重置沙盘 (Reset)
+            // ============================================================
+            ActiveTasks.Clear();
+
+            // ============================================================
+            // 第 2 步：初始化 3 台测试车辆 (Init 3 Robots)
+            // ============================================================
+            var trafficController = new BasicRegionNavigation.Applications.Controllers.TrafficController();
+
+            // R1: 西侧 Node4 (100,300) - 距离起点最远
+            var robot1 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
+                id: "AGV-1",
+                trafficController: trafficController,
+                logger: _loggerService,
+                mapNodes: MapNodes,
+                onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot1StateText = $"状态: {state}"; }); },
+                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-1: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
+            );
+            var node4 = MapNodes.FirstOrDefault(n => n.Id == 4);
+            robot1.CurrentNode = 4; robot1.CurrentX = node4.X; robot1.CurrentY = node4.Y;
+            Robot1X = node4.X; Robot1Y = node4.Y;
+            robot1.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot1X = x; Robot1Y = y; }); };
+
+            // R2: 中心 Node0 (300,300) - 距离起点中等
+            var robot2 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
+                id: "AGV-2",
+                trafficController: trafficController,
+                logger: _loggerService,
+                mapNodes: MapNodes,
+                onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot2StateText = $"状态: {state}"; }); },
+                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-2: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
+            );
+            var node0 = MapNodes.FirstOrDefault(n => n.Id == 0);
+            robot2.CurrentNode = 0; robot2.CurrentX = node0.X; robot2.CurrentY = node0.Y;
+            Robot2X = node0.X; Robot2Y = node0.Y;
+            robot2.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot2X = x; Robot2Y = y; }); };
+
+            // R3: 东侧 Node3 (500,300) - 距离起点最近！
+            var robot3 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
+                id: "AGV-3",
+                trafficController: trafficController,
+                logger: _loggerService,
+                mapNodes: MapNodes,
+                onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot3StateText = $"状态: {state}"; }); },
+                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-3: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
+            );
+            var node3 = MapNodes.FirstOrDefault(n => n.Id == 3);
+            robot3.CurrentNode = 3; robot3.CurrentX = node3.X; robot3.CurrentY = node3.Y;
+            Robot3X = node3.X; Robot3Y = node3.Y;
+            robot3.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot3X = x; Robot3Y = y; }); };
+
+            // 重组车辆集合 (从 2 台扩展为 3 台)
+            _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2, robot3 };
+
+            // 重新实例化调度器 (传入 3 台车)
+            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService);
+            _taskDispatcher.OnTaskCompleted += (order) =>
+            {
+                Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await Task.Delay(1000);
+                    ActiveTasks.Remove(order);
+                });
+            };
+
+            // ============================================================
+            // 第 3 步：下发单个搬运任务 (Dispatch Single Task)
+            // ============================================================
+            // 任务：从 Node6(东北角 500,100) 取货 → Node7(东南角 500,500) 卸货
+            // 由于 R3 在 Node3(500,300)，距离 Node6 仅 200px，是最近的车
+            var task = new TaskOrder { StartNodeId = 6, TargetNodeId = 7 };
+            ActiveTasks.Add(task);
+            _taskDispatcher.SubmitTask(task);
+
+            // "就近分配"算法应自动选择 R3，界面上可以看到：
+            //   - R3 先向北移动到 Node6 (取货)
+            //   - 停留 2 秒 (模拟装货)
+            //   - 再向南移动到 Node7 (卸货)
+            //   - R1 和 R2 全程不动
         }
 
 

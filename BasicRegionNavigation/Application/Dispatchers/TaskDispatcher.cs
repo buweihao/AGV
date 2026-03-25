@@ -106,6 +106,9 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 order.AssignedRobotId = closestRobot.Id;
                 order.Status = TaskStatus.PreChecking;
 
+                Serilog.Log.Debug($"[就近分配] 任务 {order.OrderId} (起点:{firstOrder.StartNodeId} → 终点:{firstOrder.TargetNodeId})，" +
+                    $"从 {availableRobots.Count} 台空闲车中选中 {closestRobot.Id}（距离起点 {minDistance:F1}px 最近）");
+
                 _ = ExecuteTaskAsync(closestRobot, startNode, targetNode, order);
             }
         }
