@@ -6,6 +6,7 @@ using BasicRegionNavigation.Core.Entities;
 using BasicRegionNavigation.Core.Interfaces;
 using BasicRegionNavigation.Common;
 using TaskStatus = BasicRegionNavigation.Core.Entities.TaskStatus;
+using static Core.Global;
 
 namespace BasicRegionNavigation.Applications.Dispatchers
 {
@@ -18,21 +19,38 @@ namespace BasicRegionNavigation.Applications.Dispatchers
         private readonly List<IRobot> _robots;
         private readonly IEnumerable<LogicNode> _mapNodes;
         private readonly IDatabaseService _databaseService; // 【新增】数据库服务，用于持久化任务历史
+        private readonly ITrafficController _trafficController;
         
         // 防止空闲车在排队或评估期间被二次派发任务
         private readonly HashSet<string> _dispatchedRobotsCache = new HashSet<string>();
 
         public event Action<TaskOrder> OnTaskCompleted;
 
-        public TaskDispatcher(List<IRobot> robots, IEnumerable<LogicNode> mapNodes, IDatabaseService databaseService = null)
+        public TaskDispatcher(List<IRobot> robots, IEnumerable<LogicNode> mapNodes, IDatabaseService databaseService = null, ITrafficController trafficController = null)
         {
             _robots = robots;
             _mapNodes = mapNodes;
             _databaseService = databaseService;
+            _trafficController = trafficController;
 
             foreach (var robot in _robots)
             {
                 robot.OnStateChanged += OnRobotStateChanged;
+            }
+
+            // 【步骤二：启动现场恢复（盲采上锁）】
+            if (_trafficController != null)
+            {
+                foreach (var robot in _robots)
+                {
+                    var node = _mapNodes.FirstOrDefault(n => n.Id == robot.CurrentNode);
+                    if (node != null)
+                    {
+                        // 盲采上锁：不判断是否占用，直接强制锁定物理身下的领土
+                        string zoneName = GetZoneName(node);
+                        _trafficController.ForceAcquireLock(zoneName, robot.Id);
+                    }
+                }
             }
         }
 

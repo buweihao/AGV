@@ -12,7 +12,7 @@ namespace BasicRegionNavigation.Applications.Controllers
 
     public class TrafficController : ITrafficController
     {
-        private readonly Dictionary<int, string> _lockedZones = new Dictionary<int, string>();
+        private readonly Dictionary<string, string> _lockedZones = new Dictionary<string, string>();
         private readonly object _lockObj = new object();
         private readonly int _timeoutMs;
 
@@ -21,7 +21,7 @@ namespace BasicRegionNavigation.Applications.Controllers
             _timeoutMs = timeoutMs;
         }
 
-        public async Task WaitAndAcquireLockAsync(int zoneId, string robotId)
+        public async Task WaitAndAcquireLockAsync(string zoneName, string robotId)
         {
             int retryCount = 0;
             int maxRetries = _timeoutMs / 100;
@@ -30,9 +30,9 @@ namespace BasicRegionNavigation.Applications.Controllers
             {
                 lock (_lockObj)
                 {
-                    if (!_lockedZones.ContainsKey(zoneId) || _lockedZones[zoneId] == robotId)
+                    if (!_lockedZones.ContainsKey(zoneName) || _lockedZones[zoneName] == robotId)
                     {
-                        _lockedZones[zoneId] = robotId;
+                        _lockedZones[zoneName] = robotId;
                         return; // 成功拿到锁
                     }
                 }
@@ -43,19 +43,27 @@ namespace BasicRegionNavigation.Applications.Controllers
 
                 if (retryCount > maxRetries)
                 {
-                    throw new ZoneLockTimeoutException($"Zone Deadlock: {robotId} waiting for Zone {zoneId} has timed out.");
+                    throw new ZoneLockTimeoutException($"Zone Deadlock: {robotId} waiting for Zone {zoneName} has timed out.");
                 }
             }
         }
 
-        public void ReleaseLock(int zoneId, string robotId)
+        public void ReleaseLock(string zoneName, string robotId)
         {
             lock (_lockObj)
             {
-                if (_lockedZones.ContainsKey(zoneId) && _lockedZones[zoneId] == robotId)
+                if (_lockedZones.ContainsKey(zoneName) && _lockedZones[zoneName] == robotId)
                 {
-                    _lockedZones.Remove(zoneId);
+                    _lockedZones.Remove(zoneName);
                 }
+            }
+        }
+
+        public void ForceAcquireLock(string zoneName, string robotId)
+        {
+            lock (_lockObj)
+            {
+                _lockedZones[zoneName] = robotId;
             }
         }
 

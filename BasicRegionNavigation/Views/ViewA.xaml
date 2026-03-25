@@ -13,6 +13,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
             </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="BoolToVis" />
             <Style x:Key="SectionHeaderStyle" TargetType="ContentControl">
                 <Setter Property="Template">
                     <Setter.Value>
@@ -78,17 +79,32 @@
             <Rectangle Canvas.Left="100" Canvas.Top="100" Width="400" Height="40" Fill="#2042A5F5" Stroke="#4042A5F5" StrokeThickness="1" StrokeDashArray="4,4" RadiusX="10" RadiusY="10" Panel.ZIndex="-1"/>
             <TextBlock Canvas.Left="260" Canvas.Top="75" Text="Zone_A 管制区" Foreground="#42A5F5" FontWeight="Bold" FontSize="12" Panel.ZIndex="-1"/>
 
-            <!-- 绘制地图连线 (硬编码以符合 Sprint 1 拓扑) -->
-            <Canvas Panel.ZIndex="0">
-                <Line X1="300" Y1="300" X2="300" Y2="100" Stroke="#CCC" StrokeThickness="4"/> <!-- 0-1 -->
-                <Line X1="300" Y1="300" X2="300" Y2="500" Stroke="#CCC" StrokeThickness="4"/> <!-- 0-2 -->
-                <Line X1="300" Y1="300" X2="500" Y2="300" Stroke="#CCC" StrokeThickness="4"/> <!-- 0-3 -->
-                <Line X1="300" Y1="300" X2="100" Y2="300" Stroke="#CCC" StrokeThickness="4"/> <!-- 0-4 -->
-                <Line X1="100" Y1="300" X2="100" Y2="100" Stroke="#CCC" StrokeThickness="4"/> <!-- 4-5 -->
-                <Line X1="100" Y1="100" X2="500" Y2="100" Stroke="#CCC" StrokeThickness="4"/> <!-- 5-6 -->
-                <Line X1="500" Y1="100" X2="500" Y2="300" Stroke="#CCC" StrokeThickness="4"/> <!-- 6-3 -->
-                <Line X1="300" Y1="500" X2="500" Y2="500" Stroke="#CCC" StrokeThickness="4"/> <!-- 2-7 -->
-            </Canvas>
+            <!-- 动态路网连线：支持双向线与带方向箭头的单向线 -->
+            <ItemsControl ItemsSource="{Binding MapEdges}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Canvas>
+                            <!-- 基础路网线段 -->
+                            <Line X1="{Binding X1}" Y1="{Binding Y1}" X2="{Binding X2}" Y2="{Binding Y2}" 
+                                  Stroke="LightGray" StrokeThickness="4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                            
+                            <!-- 单向箭头指示器 -->
+                            <Polygon Points="-6,-6 10,0 -6,6" Fill="#95A5A6" 
+                                     Visibility="{Binding IsOneWay, Converter={StaticResource BoolToVis}}"
+                                     Canvas.Left="{Binding CenterX}" Canvas.Top="{Binding CenterY}">
+                                <Polygon.RenderTransform>
+                                    <RotateTransform Angle="{Binding Angle}" />
+                                </Polygon.RenderTransform>
+                            </Polygon>
+                        </Canvas>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
             <!-- 渲染路网节点 -->
             <ItemsControl ItemsSource="{Binding MapNodes}">

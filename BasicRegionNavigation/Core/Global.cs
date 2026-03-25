@@ -22,29 +22,20 @@ namespace Core
     {
 
         #region 交通管制区 (Zone) 映射配置
-        private static readonly Dictionary<int, int> _nodeToZoneMap = new Dictionary<int, int>
-        {
-            // 模拟一段狭长的单行带
-            { 2, 1 },
-            { 3, 1 },
-            { 4, 1 },
-            // 模拟十字路口区域
-            { 6, 2 },
-            { 7, 2 },
-            { 8, 2 }
-        };
-
         /// <summary>
-        /// 获取节点对应的交通管制区 ID
+        /// 获取节点对应的交通管制区名称 (新方案：直接读取节点属性)
         /// </summary>
-        public static int GetZoneId(int nodeId)
+        public static string GetZoneName(BasicRegionNavigation.Core.Entities.LogicNode node)
         {
-            if (_nodeToZoneMap.TryGetValue(nodeId, out int zoneId))
+            if (node == null) return "Unknown_Zone";
+            
+            // 如果节点本身定义了 ZoneName，则使用该名称实现区域聚合（多个节点共用一个锁）
+            if (!string.IsNullOrEmpty(node.ZoneName))
             {
-                return zoneId;
+                return node.ZoneName;
             }
-            // 不在特定管制区的节点，单独作为一个 Zone，避免相互干扰
-            return nodeId + 10000;
+            // 否则每个节点独立成区，避免物理冲突
+            return "Zone_" + node.Id.ToString();
         }
         #endregion
 

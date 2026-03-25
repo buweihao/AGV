@@ -19,7 +19,7 @@ namespace BasicRegionNavigation.Common
         /// 基于 A* 算法，从起点目标节点寻找符合地图相连逻辑的最佳短路径。
         /// 返回的路径排除了起点自身，并且按照步进顺序包括终点。
         /// </summary>
-        public static List<LogicNode> FindPath(LogicNode startNode, LogicNode targetNode, IEnumerable<LogicNode> allNodes)
+        public static List<LogicNode> FindPath(LogicNode startNode, LogicNode targetNode, IEnumerable<LogicNode> allNodes, HashSet<int> blockedNodeIds = null)
         {
             var nodesDict = allNodes.ToDictionary(n => n.Id);
             var openList = new List<NodeRecord>();
@@ -41,14 +41,16 @@ namespace BasicRegionNavigation.Common
                 openList.Remove(current);
                 closedList.Add(current.Node.Id);
 
-                // 统一双向检查相邻节点：Node连接了大家，大家也连接了Node
+                // 严格遵守节点自身的连接列表（只能从 current 走向 n）
                 var neighbors = nodesDict.Values
-                    .Where(n => current.Node.ConnectedNodeIds.Contains(n.Id) 
-                                || n.ConnectedNodeIds.Contains(current.Node.Id))
+                    .Where(n => current.Node.ConnectedNodeIds.Contains(n.Id))
                     .ToList();
 
                 foreach (var neighbor in neighbors)
                 {
+                    // 【方案 B：动态重寻路】如果该节点在黑名单中（被占领），则寻找替代路径
+                    if (blockedNodeIds != null && blockedNodeIds.Contains(neighbor.Id)) continue;
+
                     if (closedList.Contains(neighbor.Id)) continue; // 如果搜过了就略过
 
                     double tentativeG = current.G + GetDistance(current.Node, neighbor);

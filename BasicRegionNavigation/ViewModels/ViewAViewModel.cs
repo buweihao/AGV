@@ -88,6 +88,9 @@ namespace BasicRegionNavigation.ViewModels
         private ObservableCollection<LogicNode> _mapNodes;
 
         [ObservableProperty]
+        private ObservableCollection<MapEdgeViewModel> _mapEdges = new ObservableCollection<MapEdgeViewModel>();
+
+        [ObservableProperty]
         private ObservableCollection<TaskOrder> _activeTasks = new ObservableCollection<TaskOrder>();
 
         private readonly IAlarmHistoryService _alarmHistoryService;
@@ -187,15 +190,16 @@ namespace BasicRegionNavigation.ViewModels
             Robot2X = 500; Robot2Y = 300;
             robot2.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot2X = x; Robot2Y = y; }); };
 
-            // 初始占位申请（按 Zone 级别锁定）
-            // 注意：新地图中 Node 4, 3 不在特定 Zone(ZoneName) 中, 之前版本可能通过 Global.GetZoneId 处理
-            _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneId(4), "AGV-1");
-            _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneId(3), "AGV-2");
+            // 初始占位申请（按新方案：直接读取节点属性生成的 ZoneName）
+            var startNode1 = MapNodes.First(n => n.Id == 4);
+            var startNode2 = MapNodes.First(n => n.Id == 3);
+            _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode1), "AGV-1");
+            _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode2), "AGV-2");
 
             _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2 };
 
             // 实例化 Dispatcher
-            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService);
+            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService, trafficController);
             _taskDispatcher.OnTaskCompleted += (order) => 
             {
                 Application.Current.Dispatcher.InvokeAsync(async () => 
@@ -217,101 +221,110 @@ namespace BasicRegionNavigation.ViewModels
         /// </summary>
         private void InitTestMap()
         {
-            var nodes = new ObservableCollection<LogicNode>();
+            var nodes = new ObservableCollection<LogicNode>
+    {
+        // 1. 中心十字交汇区
+        new LogicNode { Id = 0, X = 300, Y = 300 },
+        new LogicNode { Id = 1, X = 300, Y = 180 },
+        new LogicNode { Id = 2, X = 300, Y = 500 },
+        new LogicNode { Id = 3, X = 500, Y = 300 },
+        new LogicNode { Id = 4, X = 100, Y = 300 },
 
-            // 1. 中心十字交汇区 (用于测试死锁)
-            nodes.Add(new LogicNode { Id = 0, X = 300, Y = 300 }); // 中心点
-            nodes.Add(new LogicNode { Id = 1, X = 300, Y = 100 }); // 北
-            nodes.Add(new LogicNode { Id = 2, X = 300, Y = 500 }); // 南
-            nodes.Add(new LogicNode { Id = 3, X = 500, Y = 300 }); // 东
-            nodes.Add(new LogicNode { Id = 4, X = 100, Y = 300 }); // 西
+        // 2. 旁路与管制区 (Zone_A)
+        new LogicNode { Id = 5, X = 100, Y = 100, ZoneName = "Zone_A" },
+        new LogicNode { Id = 8, X = 233, Y = 100, ZoneName = "Zone_A" },
+        new LogicNode { Id = 9, X = 366, Y = 100, ZoneName = "Zone_A" },
+        new LogicNode { Id = 6, X = 500, Y = 100, ZoneName = "Zone_A" },
 
-            // 2. 旁路与管制区 (Zone_A)
-            nodes.Add(new LogicNode { Id = 5, X = 100, Y = 100, ZoneName = "Zone_A" }); // 西北
-            nodes.Add(new LogicNode { Id = 6, X = 500, Y = 100, ZoneName = "Zone_A" }); // 东北
+        // 3. 充电/安全区
+        new LogicNode { Id = 7, X = 500, Y = 500, NodeType = "Charging" },
 
-            // 3. 充电/安全区
-            nodes.Add(new LogicNode { Id = 7, X = 500, Y = 500, NodeType = "Charging" }); // 充电桩
+        // 4. 外围扩展区 (测试用)
+        new LogicNode { Id = 10, X = 650, Y = 300, NodeType = "Parking" }
+    };
 
-            // 建立双向连接边
-            // 中心节点十字连接
-            AddEdge(nodes[0], nodes[1]);
-            AddEdge(nodes[0], nodes[2]);
-            AddEdge(nodes[0], nodes[3]);
-            AddEdge(nodes[0], nodes[4]);
+            // 局部辅助函数，安全获取节点
+            LogicNode Get(int id) => nodes.First(n => n.Id == id);
 
-            // 管制区旁路 (4 -> 5 -> 6 -> 3)
-            AddEdge(nodes[4], nodes[5]);
-            AddEdge(nodes[5], nodes[6]);
-            AddEdge(nodes[6], nodes[3]);
+            // 中心节点十字连接（双向通行）
+            AddBidirectionalEdge(Get(0), Get(1));
+            AddBidirectionalEdge(Get(0), Get(2));
+            AddBidirectionalEdge(Get(0), Get(3));
+            AddBidirectionalEdge(Get(0), Get(4));
 
-            // 充电桩 (仅连南侧)
-            AddEdge(nodes[2], nodes[7]);
+            // 外围管制环线（严格单向逆时针通行） (4 -> 5 -> 8 -> 9 -> 6)
+            AddDirectedEdge(Get(4), Get(5));
+            AddDirectedEdge(Get(5), Get(8));
+            AddDirectedEdge(Get(8), Get(9));
+            AddDirectedEdge(Get(9), Get(6));
+            
+            // 出口单行道陷阱（关键测试点）：在节点 6 和节点 3 之间，只允许从 6 走到 3
+            AddDirectedEdge(Get(6), Get(3));
+
+            // 充电桩 (双向通行，仅连南侧)
+            AddBidirectionalEdge(Get(2), Get(7));
+
+            // 外围节点 (仅连节点 3)
+            AddBidirectionalEdge(Get(3), Get(10));
 
             MapNodes = nodes;
+            GenerateEdges(nodes);
         }
 
-        private void AddEdge(LogicNode a, LogicNode b)
+        /// <summary>
+        /// 根据节点连接关系动态生成 UI 连线集合（支持单向箭头）
+        /// </summary>
+        private void GenerateEdges(IEnumerable<LogicNode> nodes)
+        {
+            var edges = new List<MapEdgeViewModel>();
+            var processed = new HashSet<string>(); // 用于去重
+
+            foreach (var nodeA in nodes)
+            {
+                foreach (var nextId in nodeA.ConnectedNodeIds)
+                {
+                    var nodeB = nodes.FirstOrDefault(n => n.Id == nextId);
+                    if (nodeB == null) continue;
+
+                    // 唯一标识一条连线（不分方向）用于去重
+                    string edgeKey = nodeA.Id < nodeB.Id ? $"{nodeA.Id}-{nodeB.Id}" : $"{nodeB.Id}-{nodeA.Id}";
+
+                    bool aToB = true; 
+                    bool bToA = nodeB.ConnectedNodeIds.Contains(nodeA.Id);
+
+                    if (bToA)
+                    {
+                        // 双向线：只需画一次
+                        if (!processed.Contains(edgeKey))
+                        {
+                            edges.Add(new MapEdgeViewModel(nodeA.X, nodeA.Y, nodeB.X, nodeB.Y, false));
+                            processed.Add(edgeKey);
+                        }
+                    }
+                    else
+                    {
+                        // 单向线：直接添加且不参与双向去重（如果 A->B 是单向，B->A 可能不存在，也可能是另一个单向）
+                        edges.Add(new MapEdgeViewModel(nodeA.X, nodeA.Y, nodeB.X, nodeB.Y, true));
+                    }
+                }
+            }
+            MapEdges = new ObservableCollection<MapEdgeViewModel>(edges);
+        }
+
+        private void AddBidirectionalEdge(LogicNode a, LogicNode b)
         {
             if (!a.ConnectedNodeIds.Contains(b.Id)) a.ConnectedNodeIds.Add(b.Id);
             if (!b.ConnectedNodeIds.Contains(a.Id)) b.ConnectedNodeIds.Add(a.Id);
         }
 
-        private void StartRealPieDataPolling()
+        private void AddDirectedEdge(LogicNode from, LogicNode to)
         {
-            Task.Run(async () =>
+            if (!from.ConnectedNodeIds.Contains(to.Id))
             {
-                while (true)
-                {
-                    try
-                    {
-                        // 1. 计算当班时间 (逻辑保持不变)
-                        var now = DateTime.Now;
-                        DateTime start, end;
-                        if (now.Hour >= 8 && now.Hour < 20)
-                        {
-                            start = now.Date.AddHours(8);
-                            end = now.Date.AddHours(20);
-                        }
-                        else
-                        {
-                            if (now.Hour >= 20)
-                            {
-                                start = now.Date.AddHours(20);
-                                end = now.Date.AddDays(1).AddHours(8);
-                            }
-                            else
-                            {
-                                start = now.Date.AddDays(-1).AddHours(20);
-                                end = now.Date.AddHours(8);
-                            }
-                        }
-
-                        // 1. 获取统计字典
-                        var allStats = await _productionService.GetProductStatsByModuleAndProjectAsync(start, end);
-
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            // 2. 遍历字典
-                            foreach (var moduleEntry in allStats)
-                            {
-                                string moduleId = moduleEntry.Key;       // "1" 或 "2"
-                                var projectStats = moduleEntry.Value;    // {"ProjectA": 100, "ProjectB": 50}
-
-                                // 3. 将 Dictionary<string, int> 传给 UI 更新逻辑
-                                HandleDataChanged(moduleId, ModuleDataCategory.UpPieInfo, projectStats);
-                            }
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[饼图轮询错误] {ex.Message}");
-                    }
-
-                    await Task.Delay(500);
-                }
-            });
+                from.ConnectedNodeIds.Add(to.Id);
+            }
         }
+
         // 在 MainViewModel 或初始化逻辑中
         public void InitializeSubscriptions(IModbusService modbusService)
         {
@@ -740,8 +753,8 @@ namespace BasicRegionNavigation.ViewModels
             r1.CurrentNode = r1Node; r1.CurrentX = node1.X; r1.CurrentY = node1.Y; Robot1X = node1.X; Robot1Y = node1.Y;
             r2.CurrentNode = r2Node; r2.CurrentX = node2.X; r2.CurrentY = node2.Y; Robot2X = node2.X; Robot2Y = node2.Y;
 
-            trafficCtrl?.WaitAndAcquireLockAsync(Global.GetZoneId(r1Node), "AGV-1");
-            trafficCtrl?.WaitAndAcquireLockAsync(Global.GetZoneId(r2Node), "AGV-2");
+            trafficCtrl?.WaitAndAcquireLockAsync(Global.GetZoneName(node1), "AGV-1");
+            trafficCtrl?.WaitAndAcquireLockAsync(Global.GetZoneName(node2), "AGV-2");
         }
 
         private async Task ExecuteSequentialTasksAsync(BasicRegionNavigation.Core.Interfaces.IRobot robot, int[] nodeIds, string prefix)
@@ -843,7 +856,7 @@ namespace BasicRegionNavigation.ViewModels
             trafficCtrl?.ClearAllLocks();
 
             // 1.3 重新实例化调度器以清空队列与派发缓存 (彻底清空大脑)
-            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService);
+            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService, trafficCtrl);
             _taskDispatcher.OnTaskCompleted += (order) =>
             {
                 Application.Current.Dispatcher.InvokeAsync(async () =>
@@ -873,7 +886,7 @@ namespace BasicRegionNavigation.ViewModels
             // 否则 R1 会在 R2 还没动时就能非法闯入同一区域
             if (trafficCtrl != null)
             {
-                await trafficCtrl.WaitAndAcquireLockAsync(Global.GetZoneId(5), "AGV-2");
+                await trafficCtrl.WaitAndAcquireLockAsync(Global.GetZoneName(node5), "AGV-2");
             }
 
             // ============================================================
@@ -916,11 +929,11 @@ namespace BasicRegionNavigation.ViewModels
             ActiveTasks.Clear();
 
             // ============================================================
-            // 第 2 步：初始化 3 台测试车辆 (Init 3 Robots)
+            // 第 2 步：初始化 2 台测试车辆 (Init 2 Robots)
             // ============================================================
             var trafficController = new BasicRegionNavigation.Applications.Controllers.TrafficController();
 
-            // R1: 西侧 Node4 (100,300) - 距离起点最远
+            // R1: 外围 Node10 (650,300) - 距离起点较远 (250px)
             var robot1 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-1",
                 trafficController: trafficController,
@@ -929,12 +942,12 @@ namespace BasicRegionNavigation.ViewModels
                 onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot1StateText = $"状态: {state}"; }); },
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-1: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
             );
-            var node4 = MapNodes.FirstOrDefault(n => n.Id == 4);
-            robot1.CurrentNode = 4; robot1.CurrentX = node4.X; robot1.CurrentY = node4.Y;
-            Robot1X = node4.X; Robot1Y = node4.Y;
+            var node10 = MapNodes.FirstOrDefault(n => n.Id == 10);
+            robot1.CurrentNode = 10; robot1.CurrentX = node10.X; robot1.CurrentY = node10.Y;
+            Robot1X = node10.X; Robot1Y = node10.Y;
             robot1.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot1X = x; Robot1Y = y; }); };
 
-            // R2: 中心 Node0 (300,300) - 距离起点中等
+            // R2: 北侧 Node1 (300,180) - 距离起点最近 (215px)
             var robot2 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-2",
                 trafficController: trafficController,
@@ -943,30 +956,19 @@ namespace BasicRegionNavigation.ViewModels
                 onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot2StateText = $"状态: {state}"; }); },
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-2: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
             );
-            var node0 = MapNodes.FirstOrDefault(n => n.Id == 0);
-            robot2.CurrentNode = 0; robot2.CurrentX = node0.X; robot2.CurrentY = node0.Y;
-            Robot2X = node0.X; Robot2Y = node0.Y;
+            var node1 = MapNodes.FirstOrDefault(n => n.Id == 1);
+            robot2.CurrentNode = 1; robot2.CurrentX = node1.X; robot2.CurrentY = node1.Y;
+            Robot2X = node1.X; Robot2Y = node1.Y;
             robot2.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot2X = x; Robot2Y = y; }); };
 
-            // R3: 东侧 Node3 (500,300) - 距离起点最近！
-            var robot3 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
-                id: "AGV-3",
-                trafficController: trafficController,
-                logger: _loggerService,
-                mapNodes: MapNodes,
-                onStateUpdate: (state) => { Application.Current.Dispatcher.Invoke(() => { Robot3StateText = $"状态: {state}"; }); },
-                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-3: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
-            );
-            var node3 = MapNodes.FirstOrDefault(n => n.Id == 3);
-            robot3.CurrentNode = 3; robot3.CurrentX = node3.X; robot3.CurrentY = node3.Y;
-            Robot3X = node3.X; Robot3Y = node3.Y;
-            robot3.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot3X = x; Robot3Y = y; }); };
+            // 隐藏 R3 (不参与本次测试)
+            Robot3X = -100; Robot3Y = -100;
 
-            // 重组车辆集合 (从 2 台扩展为 3 台)
-            _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2, robot3 };
+            // 重组车辆集合 (2 台参与就近分配竞标)
+            _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2 };
 
-            // 重新实例化调度器 (传入 3 台车)
-            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService);
+            // 重新实例化调度器 (传入 2 台车)
+            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService, trafficController);
             _taskDispatcher.OnTaskCompleted += (order) =>
             {
                 Application.Current.Dispatcher.InvokeAsync(async () =>
