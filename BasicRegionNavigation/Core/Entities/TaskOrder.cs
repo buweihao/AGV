@@ -8,16 +8,9 @@ namespace BasicRegionNavigation.Core.Entities
         public string OrderId { get; set; } = "CMD-" + Guid.NewGuid().ToString().Substring(0, 5).ToUpper();
 
         /// <summary>
-        /// 起点节点 ID (搬运取货点)
+        /// 任务执行阶段队列
         /// </summary>
-        [ObservableProperty]
-        private int _startNodeId;
-
-        /// <summary>
-        /// 目标节点 ID (搬运卸货点)
-        /// </summary>
-        [ObservableProperty]
-        private int _targetNodeId;
+        public System.Collections.Generic.Queue<TaskStage> Stages { get; set; } = new System.Collections.Generic.Queue<TaskStage>();
 
         [ObservableProperty]
         private bool _isCompleted;

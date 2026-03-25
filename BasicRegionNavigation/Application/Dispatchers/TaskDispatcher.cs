@@ -35,7 +35,9 @@ namespace BasicRegionNavigation.Applications.Dispatchers
 
             foreach (var robot in _robots)
             {
-                robot.OnStateChanged += OnRobotStateChanged;
+                robot.OnRobotStateChanged += HandleRobotStateChanged;
+                // 【新增】订阅低电量事件 (事件驱动架构)
+                robot.OnBatteryLow += OnRobotBatteryLow;
             }
 
             // 【步骤二：启动现场恢复（盲采上锁）】
@@ -54,11 +56,43 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             }
         }
 
-        private void OnRobotStateChanged(RobotState state)
+        private void HandleRobotStateChanged(RobotState state)
         {
             if (state == RobotState.IDLE)
             {
                 TryDispatch();
+            }
+        }
+
+        /// <summary>
+        /// 低电量事件处理逻辑
+        /// </summary>
+        private void OnRobotBatteryLow(IRobot robot)
+        {
+            // 如果小车当前正在忙碌，暂时不中断，等它 IDLE 后再触发（或者由 TryDispatch 捕获）
+            // 如果已经是 IDLE 状态，且没有被预占，则立刻下发回充任务
+            if (robot.State == RobotState.IDLE && !_dispatchedRobotsCache.Contains(robot.Id))
+            {
+                // 1. 寻找最近的充电节点
+                var chargingNode = _mapNodes
+                    .Where(n => n.NodeType == "Charging")
+                    .OrderBy(n => Math.Sqrt(Math.Pow(n.X - robot.CurrentX, 2) + Math.Pow(n.Y - robot.CurrentY, 2)))
+                    .FirstOrDefault();
+
+                if (chargingNode != null)
+                {
+                    // 2. 如果已经身在充电节点，或者就在充电节点旁边，也需要补电（由 MockRobot 内部处理）
+                    // 3. 生成紧急回充任务（通过 prefix 标识）
+                    var chargeOrder = new TaskOrder 
+                    { 
+                        OrderId = "CHARGE-" + Guid.NewGuid().ToString().Substring(0, 4),
+                        StageDescription = "低电量自动回充"
+                    };
+                    chargeOrder.Stages.Enqueue(new TaskStage { TargetNodeId = chargingNode.Id, WaitTimeMs = 0, StageName = "前往快速补电" });
+
+                    Serilog.Log.Information($"[自动回充] 侦测到小车 {robot.Id} 电量低 ({robot.BatteryLevel:F1}%)，自动下发任务至充电桩 {chargingNode.Id}");
+                    SubmitTask(chargeOrder);
+                }
             }
         }
 
@@ -77,11 +111,17 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             {
                 // 1. 预检队列首位任务
                 var firstOrder = _orderQueue.Peek();
-                var startNode = _mapNodes.FirstOrDefault(n => n.Id == firstOrder.StartNodeId);
-                var targetNode = _mapNodes.FirstOrDefault(n => n.Id == firstOrder.TargetNodeId);
+                if (firstOrder.Stages == null || firstOrder.Stages.Count == 0)
+                {
+                    _orderQueue.Dequeue();
+                    continue;
+                }
+
+                var firstStage = firstOrder.Stages.Peek();
+                var evalNode = _mapNodes.FirstOrDefault(n => n.Id == firstStage.TargetNodeId);
 
                 // 异常处理：节点不存在时直接丢弃任务
-                if (startNode == null || targetNode == null)
+                if (evalNode == null)
                 {
                     _orderQueue.Dequeue();
                     continue;
@@ -104,8 +144,8 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     var currentRobotNode = _mapNodes.FirstOrDefault(n => n.Id == robot.CurrentNode);
                     if (currentRobotNode == null) continue;
 
-                    double dx = currentRobotNode.X - startNode.X;
-                    double dy = currentRobotNode.Y - startNode.Y;
+                    double dx = currentRobotNode.X - evalNode.X;
+                    double dy = currentRobotNode.Y - evalNode.Y;
                     double distance = Math.Sqrt(dx * dx + dy * dy);
 
                     if (distance < minDistance)
@@ -122,27 +162,25 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 _dispatchedRobotsCache.Add(closestRobot.Id);
                 
                 order.AssignedRobotId = closestRobot.Id;
-                order.Status = TaskStatus.PreChecking;
+                order.Status = TaskStatus.Executing;
 
-                Serilog.Log.Debug($"[就近分配] 任务 {order.OrderId} (起点:{firstOrder.StartNodeId} → 终点:{firstOrder.TargetNodeId})，" +
-                    $"从 {availableRobots.Count} 台空闲车中选中 {closestRobot.Id}（距离起点 {minDistance:F1}px 最近）");
-
-                _ = ExecuteTaskAsync(closestRobot, startNode, targetNode, order);
+                _ = ExecuteTaskAsync(closestRobot, order);
             }
         }
 
         /// <summary>
-        /// 两段式执行逻辑：去起点取货 -> 去终点卸货 (含联动避让)
+        /// 多段任务流执行逻辑：按顺序依次执行所有 Stage
         /// </summary>
-        private async Task ExecuteTaskAsync(IRobot robot, LogicNode startNode, LogicNode targetNode, TaskOrder order)
+        private async Task ExecuteTaskAsync(IRobot robot, TaskOrder order)
         {
             // ====== 任务开始时写入数据库 (状态: 执行中) ======
+            var firstNode = _mapNodes.FirstOrDefault(n => n.Id == (order.Stages.Peek()?.TargetNodeId ?? 0));
             var taskHistory = new TaskHistory
             {
                 TaskId = order.OrderId,
                 RobotId = robot.Id,
-                StartNode = startNode.Id,
-                EndNode = targetNode.Id,
+                StartNode = robot.CurrentNode,
+                EndNode = firstNode?.Id ?? 0,
                 CreateTime = DateTime.Now,
                 Status = (int)TaskStatus.Executing
             };
@@ -150,62 +188,62 @@ namespace BasicRegionNavigation.Applications.Dispatchers
 
             try
             {
-                // --- 第一阶段：前往起点 (取货) ---
-                order.StageDescription = "前往起点";
-                order.Status = TaskStatus.Executing;
-                await robot.GoToNodeAsync(startNode);
-
-                // 模拟装货动作 (2秒)
-                order.StageDescription = "正在装货...";
-                await Task.Delay(2000);
-
-                // --- 第二阶段：前往终点 (卸货) ---
-                order.StageDescription = "前往终点";
-
-                // 【核心逻辑：终点占用预检 & 联动避让】
-                // 确保在迈向终点前，如果终点有人占着，先指挥对方挪窝
-                while (true)
+                while (order.Stages.Count > 0)
                 {
-                    var occupantRobot = _robots.FirstOrDefault(r => r.Id != robot.Id && r.CurrentNode == targetNode.Id);
-                    if (occupantRobot == null)
+                    var currentStage = order.Stages.Dequeue();
+                    var targetNode = _mapNodes.FirstOrDefault(n => n.Id == currentStage.TargetNodeId);
+                    
+                    if (targetNode == null) continue;
+
+                    order.StageDescription = currentStage.StageName;
+                    
+                    // 【核心逻辑：终点占用预检 & 联动避让】
+                    // 确保在迈向阶段目标点前，清理终点占位车
+                    while (true)
                     {
-                        break; // 终点已空，正常放行
-                    }
+                        var occupantRobot = _robots.FirstOrDefault(r => r.Id != robot.Id && r.CurrentNode == targetNode.Id);
+                        if (occupantRobot == null) break;
 
-                    if (occupantRobot.State == RobotState.IDLE)
-                    {
-                        // 发现占位车闲置，实施强制联动避让
-                        var bufferCandidates = _mapNodes
-                            .Where(n => (targetNode.ConnectedNodeIds.Contains(n.Id) || n.ConnectedNodeIds.Contains(targetNode.Id))
-                                        && !_robots.Any(r => r.CurrentNode == n.Id))
-                            .ToList();
-
-                        var bufferNode = bufferCandidates.FirstOrDefault(n => n.IsBufferNode) ?? bufferCandidates.FirstOrDefault();
-
-                        if (bufferNode != null)
+                        if (occupantRobot.State == RobotState.IDLE)
                         {
-                            await occupantRobot.GoToNodeAsync(bufferNode);
+                            var bufferCandidates = _mapNodes
+                                .Where(n => (targetNode.ConnectedNodeIds.Contains(n.Id) || n.ConnectedNodeIds.Contains(targetNode.Id))
+                                            && !_robots.Any(r => r.CurrentNode == n.Id))
+                                .ToList();
+
+                            var bufferNode = bufferCandidates.FirstOrDefault(n => n.IsBufferNode) ?? bufferCandidates.FirstOrDefault();
+
+                            if (bufferNode != null)
+                            {
+                                await occupantRobot.GoToNodeAsync(bufferNode);
+                            }
+                            else
+                            {
+                                await Task.Delay(1000); 
+                            }
                         }
                         else
                         {
-                            await Task.Delay(1000); // 无路可退，死等
+                            await Task.Delay(1000); 
                         }
                     }
-                    else
+
+                    // 执行移动
+                    await robot.GoToNodeAsync(targetNode);
+
+                    // 到达后的动作停留
+                    if (currentStage.WaitTimeMs > 0)
                     {
-                        await Task.Delay(1000); // 占位车正在路过，等待
+                        order.StageDescription = $"{currentStage.StageName} (等待 {currentStage.WaitTimeMs}ms)";
+                        await Task.Delay(currentStage.WaitTimeMs);
                     }
                 }
 
-                // 避让通过，正式发车前往终位
-                await robot.GoToNodeAsync(targetNode);
-
-                // --- 任务结算 ---
+                // --- 全部阶段完成 ---
                 order.Status = TaskStatus.Completed;
                 order.StageDescription = string.Empty;
                 order.IsCompleted = true;
 
-                // ====== 任务完成时更新数据库 (状态: 已完成) ======
                 taskHistory.FinishTime = DateTime.Now;
                 taskHistory.Status = (int)TaskStatus.Completed;
                 await SafeUpdateTaskHistoryAsync(taskHistory);
@@ -215,16 +253,14 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             catch (Exception ex)
             {
                 order.Status = TaskStatus.Fault;
-                order.StageDescription = "调度异常: " + ex.Message;
+                order.StageDescription = "派单执行故障: " + ex.Message;
 
-                // ====== 任务异常时更新数据库 (状态: 异常) ======
                 taskHistory.FinishTime = DateTime.Now;
                 taskHistory.Status = (int)TaskStatus.Fault;
                 await SafeUpdateTaskHistoryAsync(taskHistory);
             }
             finally
             {
-                // 彻底完成后移出调度锁，触发下一波派发
                 _dispatchedRobotsCache.Remove(robot.Id);
                 TryDispatch();
             }

@@ -12,11 +12,15 @@ namespace BasicRegionNavigation.Core.Interfaces
         double CurrentX { get; }
         double CurrentY { get; }
         RobotState State { get; }
+        string CurrentStateText { get; }
+        string CurrentTaskDesc { get; set; }
+        double BatteryLevel { get; set; }
         
         Task GoToNodeAsync(LogicNode targetNode);
 
         event Action<double, double> OnPositionChanged;
         event Action<int> OnNodeChanged;
-        event Action<RobotState> OnStateChanged;
+        event Action<RobotState> OnRobotStateChanged;
+        event Action<IRobot> OnBatteryLow;
     }
 }

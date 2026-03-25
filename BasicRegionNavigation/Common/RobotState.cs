@@ -5,6 +5,7 @@ namespace BasicRegionNavigation.Common
         IDLE,
         MOVING,
         PAUSED,
-        ERROR
+        ERROR,
+        CHARGING
     }
 }

@@ -39,6 +39,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="180"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -48,7 +49,7 @@
         <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Vertical" Margin="10" HorizontalAlignment="Center">
             <StackPanel Orientation="Horizontal" Margin="0,0,0,10" HorizontalAlignment="Center">
                 <TextBlock Text="随机调度:" VerticalAlignment="Center" FontSize="16" Margin="0,0,10,0"/>
-                <Button Content="发车订单" Command="{Binding DispatchTaskCommand}" Width="100" Height="30" FontSize="16" Margin="0,0,20,0"/>
+                <Button Content="发车订单" Command="{Binding DispatchCustomSequenceTaskCommand}" Width="100" Height="30" FontSize="16" Margin="0,0,20,0"/>
                 <TextBlock Text="{Binding RobotPositionText}" VerticalAlignment="Center" FontSize="16" Foreground="Blue"/>
             </StackPanel>
             
@@ -56,9 +57,6 @@
                 <Button Content="暂停" Command="{Binding PauseRobotCommand}" Width="80" Height="30" FontSize="16" Margin="0,0,10,0"/>
                 <Button Content="继续" Command="{Binding ResumeRobotCommand}" Width="80" Height="30" FontSize="16" Margin="0,0,10,0"/>
                 <Button Content="取消" Command="{Binding CancelRobotCommand}" Width="80" Height="30" FontSize="16" Margin="0,0,20,0"/>
-                <TextBlock Text="{Binding Robot1StateText}" VerticalAlignment="Center" FontSize="16" Foreground="Blue" FontWeight="Bold" Margin="0,0,10,0"/>
-                <TextBlock Text="{Binding Robot2StateText}" VerticalAlignment="Center" FontSize="16" Foreground="Red" FontWeight="Bold" Margin="0,0,10,0"/>
-                <TextBlock Text="{Binding Robot3StateText}" VerticalAlignment="Center" FontSize="16" Foreground="Green" FontWeight="Bold"/>
             </StackPanel>
 
             <!-- 新增的 Zone 管制测试控制组 -->
@@ -78,6 +76,10 @@
             <!-- 极限测试地图背景装饰 -->
             <Rectangle Canvas.Left="100" Canvas.Top="100" Width="400" Height="40" Fill="#2042A5F5" Stroke="#4042A5F5" StrokeThickness="1" StrokeDashArray="4,4" RadiusX="10" RadiusY="10" Panel.ZIndex="-1"/>
             <TextBlock Canvas.Left="260" Canvas.Top="75" Text="Zone_A 管制区" Foreground="#42A5F5" FontWeight="Bold" FontSize="12" Panel.ZIndex="-1"/>
+
+            <!-- Zone_Center 中心区背景装饰 (补丁:覆盖 11-14 + 0) -->
+            <Rectangle Canvas.Left="215" Canvas.Top="215" Width="170" Height="170" Fill="#25E67E22" Stroke="#60E67E22" StrokeThickness="1.5" StrokeDashArray="6,3" RadiusX="12" RadiusY="12" Panel.ZIndex="-1"/>
+            <TextBlock Canvas.Left="255" Canvas.Top="195" Text="Zone_Center" Foreground="#E67E22" FontWeight="Bold" FontSize="12" Panel.ZIndex="-1"/>
 
             <!-- 动态路网连线：支持双向线与带方向箭头的单向线 -->
             <ItemsControl ItemsSource="{Binding MapEdges}">
@@ -101,7 +103,7 @@
                                     <RotateTransform Angle="{Binding Angle}" />
                                 </Polygon.RenderTransform>
                             </Polygon>
-                        </Canvas>
+                            </Canvas>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
@@ -135,6 +137,10 @@
                             <DataTrigger Binding="{Binding ZoneName}" Value="Zone_A">
                                 <Setter TargetName="NodeElement" Property="Fill" Value="#3498DB"/>
                                 <Setter TargetName="NodeElement" Property="Stroke" Value="#2980B9"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ZoneName}" Value="Zone_Center">
+                                <Setter TargetName="NodeElement" Property="Fill" Value="#E67E22"/>
+                                <Setter TargetName="NodeElement" Property="Stroke" Value="#D35400"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Id}" Value="0">
                                 <Setter TargetName="NodeElement" Property="Fill" Value="#E74C3C"/>
@@ -199,6 +205,38 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- AGV 实时状态监控列表 (Row 2) -->
+        <Border Grid.Row="2" Grid.ColumnSpan="2" Margin="10,0,10,10" Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Border Background="#f8f9fa" CornerRadius="8,8,0,0" Padding="10,5">
+                    <TextBlock Text="📋 AGV 实时状态监控" FontWeight="Bold" Foreground="#333"/>
+                </Border>
+                <DataGrid Grid.Row="1" ItemsSource="{Binding RobotList}" AutoGenerateColumns="False" 
+                          CanUserAddRows="False" IsReadOnly="True" Background="White" BorderThickness="0"
+                          GridLinesVisibility="Horizontal" RowHeaderWidth="0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="小车编号" Binding="{Binding Id}" Width="100"/>
+                        <DataGridTemplateColumn Header="运行状态" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="#E3F2FD" CornerRadius="4" Padding="5,2" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding CurrentStateText}" Foreground="#1976D2" FontWeight="Bold"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="当前电量" Binding="{Binding BatteryLevel, StringFormat={}{0:F1}%}" Width="100"/>
+                        <DataGridTextColumn Header="所在节点" Binding="{Binding CurrentNode}" Width="100"/>
+                        <DataGridTextColumn Header="任务描述" Binding="{Binding CurrentTaskDesc}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
             </Grid>
         </Border>
 

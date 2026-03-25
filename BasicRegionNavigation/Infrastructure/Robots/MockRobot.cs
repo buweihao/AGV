@@ -6,19 +6,30 @@ using Core;
 using System;
 using System.Threading.Tasks;
 
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace BasicRegionNavigation.Infrastructure.Robots
 {
-    public class MockRobot : IRobot
+    public partial class MockRobot : ObservableObject, IRobot
     {
-        public string Id { get; }
-        public int CurrentNode { get; set; }
-        public double CurrentX { get; set; }
-        public double CurrentY { get; set; }
-        public RobotState State { get; private set; } = RobotState.IDLE;
+        [ObservableProperty] private string _id;
+        [ObservableProperty] private int _currentNode;
+        [ObservableProperty] private double _currentX;
+        [ObservableProperty] private double _currentY;
+        [ObservableProperty] private RobotState _state = RobotState.IDLE;
+        [ObservableProperty] private double _batteryLevel = 100;
+        [ObservableProperty] private string _currentTaskDesc = "-";
+
+        public string CurrentStateText => State.ToString();
+
+        partial void OnStateChanged(RobotState value) => OnPropertyChanged(nameof(CurrentStateText));
 
         public event Action<double, double> OnPositionChanged;
         public event Action<int> OnNodeChanged;
-        public event Action<RobotState> OnStateChanged;
+        public event Action<RobotState> OnRobotStateChanged; // 改个名字避免与局部 Partial 方法冲突
+        public event Action<IRobot> OnBatteryLow;
+
+        private bool _isCharging = false;
 
         private Action<RobotState> _onStateUpdate;
         private Action<string> _onError;
@@ -50,11 +61,12 @@ namespace BasicRegionNavigation.Infrastructure.Robots
         {
             State = state;
             _onStateUpdate?.Invoke(state);
-            OnStateChanged?.Invoke(state);
+            OnRobotStateChanged?.Invoke(state); // 改个名字
         }
 
         public async Task GoToNodeAsync(LogicNode ultimateTargetNode)
         {
+            CurrentTaskDesc = $"前往节点 {ultimateTargetNode.Id}";
             if (State == RobotState.ERROR)
             {
                 Console.WriteLine($"MockRobot {Id}: 无法执行任务，当前状态为 ERROR。");
@@ -123,41 +135,55 @@ namespace BasicRegionNavigation.Infrastructure.Robots
                     // 先抓新藤蔓：如果跨区，必须先申请到前方区域的锁
                     if (currentZone != nextZone)
                     {
-                        Console.WriteLine($"MockRobot {Id}: 准备申请前方管制区 {nextZone} 的锁...");
                         try
                         {
                             await _trafficController.WaitAndAcquireLockAsync(nextZone, this.Id);
                         }
                         catch (BasicRegionNavigation.Applications.Controllers.ZoneLockTimeoutException)
                         {
-                            Serilog.Log.Warning($"MockRobot {Id}: 前方区域 {nextZone} 超时占用，尝试绕路。将节点 {nextNode.Id} 标记为障碍。");
                             blockedNodes.Add(nextNode.Id);
                             needsReroute = true;
                             break;
                         }
                     }
 
-                    // 物理移动：执行实际的移动延迟
+                    // 物理移动：平滑移动模拟
                     while (true)
                     {
                         if (_cancelFlag) break;
+
                         double dx = nextNode.X - CurrentX;
                         double dy = nextNode.Y - CurrentY;
                         double distance = Math.Sqrt(dx * dx + dy * dy);
-                        if (distance <= 5.0) { CurrentX = nextNode.X; CurrentY = nextNode.Y; break; }
+
+                        if (distance <= 5.0)
+                        {
+                            CurrentX = nextNode.X;
+                            CurrentY = nextNode.Y;
+                            break;
+                        }
+
                         double ratio = 5.0 / distance;
-                        CurrentX += dx * ratio; CurrentY += dy * ratio;
+                        CurrentX += dx * ratio;
+                        CurrentY += dy * ratio;
                         OnPositionChanged?.Invoke(CurrentX, CurrentY);
                         await Task.Delay(50);
                     }
 
                     if (!_cancelFlag)
                     {
-                        // 更新位置：移动到位后更新节点
+                        // 到达节点：更新状态与电量
                         CurrentNode = nextNode.Id;
                         OnNodeChanged?.Invoke(CurrentNode);
 
-                        // 后松旧藤蔓：如果刚才发生了跨区，物理车身已离开旧区，释放旧锁
+                        // 每次移动到一个节点，消耗 2% 电量
+                        BatteryLevel = Math.Max(0, BatteryLevel - 2);
+                        if (BatteryLevel <= 20 && !_isCharging)
+                        {
+                            OnBatteryLow?.Invoke(this);
+                        }
+
+                        // 后松旧藤蔓
                         if (currentZone != nextZone)
                         {
                             _trafficController.ReleaseLock(currentZone, this.Id);
@@ -166,7 +192,7 @@ namespace BasicRegionNavigation.Infrastructure.Robots
                     }
                     else
                     {
-                        // 取消时安全处理
+                        // 取消时安全释放已申请但未进入的锁
                         if (currentZone != nextZone) _trafficController.ReleaseLock(nextZone, this.Id);
                         break;
                     }
@@ -180,8 +206,22 @@ namespace BasicRegionNavigation.Infrastructure.Robots
 
             if (!_cancelFlag && reachedTarget)
             {
+                // 到达终点后的特殊逻辑：充电处理
+                if (ultimateTargetNode.NodeType == "Charging")
+                {
+                    _isCharging = true;
+                    SetState(RobotState.CHARGING);
+                    Serilog.Log.Debug($"{Id }到达充电位置，开始快速补电...");
+                    await Task.Delay(5000); // 充电 5 秒
+                    BatteryLevel = 100;
+                    _isCharging = false;
+                    Serilog.Log.Debug($"{Id}补电完成，电量 -> 100%。");
+
+                }
+
                 SetState(RobotState.IDLE);
-                Serilog.Log.Debug($"MockRobot {Id}: 任务全部顺利完成。");
+                CurrentTaskDesc = "-";
+                Serilog.Log.Debug($"MockRobot {Id}: 任务已完成。");
             }
         }
 
