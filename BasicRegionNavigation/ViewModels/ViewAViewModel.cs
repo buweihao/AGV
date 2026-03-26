@@ -33,6 +33,7 @@ using System.Windows.Media;
 using Expression = System.Linq.Expressions.Expression;
 using TaskStatus = BasicRegionNavigation.Core.Entities.TaskStatus;
 using Timer = System.Timers.Timer;
+using BasicRegionNavigation.Common;
 
 namespace BasicRegionNavigation.ViewModels
 {
@@ -95,6 +96,9 @@ namespace BasicRegionNavigation.ViewModels
 
         private readonly IAlarmHistoryService _alarmHistoryService;
         private readonly IModbusService _modbusService;
+
+        [ObservableProperty] private bool _isContinuousSimulationRunning;
+        private CancellationTokenSource _simulationCts;
         /// <summary>
         /// 本页面专用，表示用户选中需要查看的模组
         /// </summary>
@@ -188,13 +192,29 @@ namespace BasicRegionNavigation.ViewModels
             Robot2X = 500; Robot2Y = 300;
             robot2.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot2X = x; Robot2Y = y; }); };
 
-            // 初始占位申请（按新方案：直接读取节点属性生成的 ZoneName）
+            var robot3 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
+                id: "AGV-3",
+                trafficController: trafficController,
+                logger: _loggerService,
+                mapNodes: MapNodes,
+                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-3: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
+            );
+            // 放在北侧节点 1
+            robot3.CurrentNode = 1;
+            robot3.CurrentX = 300;
+            robot3.CurrentY = 180;
+            Robot3X = 300; Robot3Y = 180;
+            robot3.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot3X = x; Robot3Y = y; }); };
+
+            // 初始占位申请
             var startNode1 = MapNodes.First(n => n.Id == 4);
             var startNode2 = MapNodes.First(n => n.Id == 3);
+            var startNode3 = MapNodes.First(n => n.Id == 1);
             _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode1), "AGV-1");
             _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode2), "AGV-2");
+            _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode3), "AGV-3");
 
-            _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2 };
+            _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2, robot3 };
             RobotList = new ObservableCollection<IRobot>(_robots);
 
             // 实例化 Dispatcher
@@ -242,20 +262,20 @@ namespace BasicRegionNavigation.ViewModels
         new LogicNode { Id = 6, X = 500, Y = 100, ZoneName = "Zone_A" },
 
         // 3. 充电/安全区 (串联队列)
-        new LogicNode { Id = 15, X = 400, Y = 500, NodeType = "Charging" },
-        new LogicNode { Id = 7,  X = 500, Y = 500, NodeType = "Charging" },
-        new LogicNode { Id = 16, X = 600, Y = 500, NodeType = "Charging" },
-        new LogicNode { Id = 17, X = 700, Y = 500, NodeType = "Charging" },
-        new LogicNode { Id = 18, X = 800, Y = 500, NodeType = "Charging" },
-        new LogicNode { Id = 19, X = 900, Y = 500, NodeType = "Charging" },
+        new LogicNode { Id = 15, X = 400, Y = 500, NodeType = NodeType.Charging },
+        new LogicNode { Id = 7,  X = 500, Y = 500, NodeType = NodeType.Charging },
+        new LogicNode { Id = 16, X = 600, Y = 500, NodeType = NodeType.Charging },
+        new LogicNode { Id = 17, X = 700, Y = 500, NodeType = NodeType.Charging },
+        new LogicNode { Id = 18, X = 800, Y = 500, NodeType = NodeType.Charging },
+        new LogicNode { Id = 19, X = 900, Y = 500, NodeType = NodeType.Charging },
 
         // 4. 外围扩展区 (测试用)
-        new LogicNode { Id = 10, X = 650, Y = 300, NodeType = "Parking" },
+        new LogicNode { Id = 10, X = 650, Y = 300, NodeType = NodeType.Parking },
 
         // 5. 节点 2 西侧分支
         new LogicNode { Id = 20, X = 150, Y = 500 }, // 普通过渡节点
-        new LogicNode { Id = 21, X = 150, Y = 600, NodeType = "Charging" },
-        new LogicNode { Id = 22, X = 150, Y = 700, NodeType = "Charging" }
+        new LogicNode { Id = 21, X = 150, Y = 600, NodeType = NodeType.Charging },
+        new LogicNode { Id = 22, X = 150, Y = 700, NodeType = NodeType.Charging }
     };
 
             // 局部辅助函数，安全获取节点
@@ -977,7 +997,9 @@ namespace BasicRegionNavigation.ViewModels
             _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2, robot3 };
             RobotList = new ObservableCollection<IRobot>(_robots);
 
-            // 重新实例化调度器 (传入 3 台车)
+            // 重新实例化调度器 (干掉旧的内部队列，并清理事件绑定防止重複调度)
+            _taskDispatcher?.UnsubscribeFromRobots();
+
             _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService, trafficController);
             _taskDispatcher.OnTaskCompleted += (order) =>
             {
@@ -1058,7 +1080,117 @@ namespace BasicRegionNavigation.ViewModels
             module.CurrentColumnInfo.XAxes[0].Labels = labels;
         }
 
+        [RelayCommand]
+        private async Task InitThreeRobots()
+        {
+            // 复用并增强原有重置逻辑，专门适配 3 台车到特定点位
+            // R1 -> Node 4 (西), R2 -> Node 1 (北), R3 -> Node 3 (东)
+            
+            // 1. 清理
+            ActiveTasks.Clear();
+            ResetRobot(); // 关闭报警 UI
+            
+            // 2. 清锁 (取第一台车的交通控制器，因为它们共享内存实例)
+            var trafficCtrl = _robots[0].GetType().GetField("_trafficController", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.GetValue(_robots[0]) as BasicRegionNavigation.Core.Interfaces.ITrafficController;
+            trafficCtrl?.ClearAllLocks();
 
+            // 3. 重置机器人
+            foreach (var r in _robots)
+            {
+                var mr = r as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
+                mr?.Cancel();
+                mr?.Reset();
+            }
+
+            // 4. 重实例化调度器 (干掉旧的内部队列，并清理事件绑定防止重複调度)
+            _taskDispatcher?.UnsubscribeFromRobots();
+
+            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService, trafficCtrl);
+            _taskDispatcher.OnTaskCompleted += (order) =>
+            {
+                Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await Task.Delay(1000);
+                    ActiveTasks.Remove(order);
+                });
+            };
+
+            // 5. 放置位置
+            // R1(4), R2(1), R3(3)
+            if (_robots.Count >= 3)
+            {
+                var r1 = _robots[0] as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
+                var r2 = _robots[1] as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
+                var r3 = _robots[2] as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
+
+                var n4 = MapNodes.FirstOrDefault(n => n.Id == 4);
+                var n1 = MapNodes.FirstOrDefault(n => n.Id == 1);
+                var n3 = MapNodes.FirstOrDefault(n => n.Id == 3);
+
+                r1.CurrentNode = 4; r1.CurrentX = n4.X; r1.CurrentY = n4.Y; Robot1X = n4.X; Robot1Y = n4.Y;
+                r2.CurrentNode = 1; r2.CurrentX = n1.X; r2.CurrentY = n1.Y; Robot2X = n1.X; Robot2Y = n1.Y;
+                r3.CurrentNode = 3; r3.CurrentX = n3.X; r3.CurrentY = n3.Y; Robot3X = n3.X; Robot3Y = n3.Y;
+
+                // 强制上物理锁
+                trafficCtrl?.ForceAcquireLock(Global.GetZoneName(n4), "AGV-1");
+                trafficCtrl?.ForceAcquireLock(Global.GetZoneName(n1), "AGV-2");
+                trafficCtrl?.ForceAcquireLock(Global.GetZoneName(n3), "AGV-3");
+            }
+        }
+
+        [RelayCommand]
+        private void CallMachineOneMaterial()
+        {
+            var order = new TaskOrder { OrderId = "M1-CALL-" + Guid.NewGuid().ToString().Substring(0, 4) };
+            
+            // Stage 1: 原料区取料 (Node 6)
+            order.Stages.Enqueue(new TaskStage { TargetNodeId = 6, WaitTimeMs = 2000, StageName = "前往原料区取料" });
+            
+            // Stage 2: 为1号机床上料 (Node 20)
+            order.Stages.Enqueue(new TaskStage { TargetNodeId = 20, WaitTimeMs = 3000, StageName = "为1号机床上料" });
+            
+            // Stage 3: 回停车区 (Node 10)
+            order.Stages.Enqueue(new TaskStage { TargetNodeId = 10, WaitTimeMs = 0, StageName = "任务完成，回停车区" });
+
+            ActiveTasks.Add(order);
+            _taskDispatcher.SubmitTask(order);
+        }
+
+        [RelayCommand]
+        private void ToggleContinuousSimulation()
+        {
+            IsContinuousSimulationRunning = !IsContinuousSimulationRunning;
+
+            if (IsContinuousSimulationRunning)
+            {
+                _simulationCts = new CancellationTokenSource();
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (!_simulationCts.Token.IsCancellationRequested)
+                        {
+                            // 下发一次业务任务
+                            Application.Current.Dispatcher.Invoke(() => CallMachineOneMaterial());
+
+                            // 随机节拍 8-15 秒
+                            int delay = Random.Shared.Next(8000, 15000);
+                            await Task.Delay(delay, _simulationCts.Token);
+                        }
+                    }
+                    catch (OperationCanceledException) { }
+                }, _simulationCts.Token);
+                
+                Serilog.Log.Information("[冲刺2] 工厂自动模拟开始...");
+            }
+            else
+            {
+                _simulationCts?.Cancel();
+                _simulationCts = null;
+                Serilog.Log.Information("[冲刺2] 工厂自动模拟已停止。");
+            }
+        }
     }
 
 }

@@ -79,6 +79,64 @@ namespace BasicRegionNavigation.Common
             return new List<LogicNode>(); // 无路可去
         }
 
+        /// <summary>
+        /// 计算两点之间实际路径的总长度。如果不可达，则返回 double.MaxValue。
+        /// </summary>
+        public static double CalculateActualDistance(LogicNode startNode, LogicNode targetNode, IEnumerable<LogicNode> allNodes)
+        {
+            if (startNode == null || targetNode == null) return double.MaxValue;
+            if (startNode.Id == targetNode.Id) return 0;
+
+            var nodesDict = allNodes.ToDictionary(n => n.Id);
+            var openList = new List<NodeRecord>();
+            var closedList = new HashSet<int>();
+
+            openList.Add(new NodeRecord { Node = startNode, G = 0, F = GetDistance(startNode, targetNode) });
+
+            while (openList.Count > 0)
+            {
+                var current = openList.OrderBy(r => r.F).First();
+                if (current.Node.Id == targetNode.Id)
+                {
+                    return current.G; // G 值即为从起点到当前点的累积实际路线长度
+                }
+
+                openList.Remove(current);
+                closedList.Add(current.Node.Id);
+
+                var neighbors = nodesDict.Values
+                    .Where(n => current.Node.ConnectedNodeIds.Contains(n.Id))
+                    .ToList();
+
+                foreach (var neighbor in neighbors)
+                {
+                    if (closedList.Contains(neighbor.Id)) continue;
+
+                    double tentativeG = current.G + GetDistance(current.Node, neighbor);
+                    var neighborRecord = openList.FirstOrDefault(r => r.Node.Id == neighbor.Id);
+                    
+                    if (neighborRecord == null)
+                    {
+                        openList.Add(new NodeRecord
+                        {
+                            Node = neighbor,
+                            Parent = current,
+                            G = tentativeG,
+                            F = tentativeG + GetDistance(neighbor, targetNode)
+                        });
+                    }
+                    else if (tentativeG < neighborRecord.G)
+                    {
+                        neighborRecord.Parent = current;
+                        neighborRecord.G = tentativeG;
+                        neighborRecord.F = tentativeG + GetDistance(neighbor, targetNode);
+                    }
+                }
+            }
+
+            return double.MaxValue; // 不可达
+        }
+
         private static double GetDistance(LogicNode a, LogicNode b)
         {
             double dx = a.X - b.X;
@@ -97,10 +155,9 @@ namespace BasicRegionNavigation.Common
             }
             path.Reverse();
 
-            // 移除起步点自身（因为AGV已经站在起步点了）
             if (path.Count > 0)
             {
-                path.RemoveAt(0);
+                path.RemoveAt(0); // 排除起始点
             }
             return path;
         }

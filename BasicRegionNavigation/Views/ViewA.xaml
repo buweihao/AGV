@@ -68,6 +68,14 @@
                 <Button Content="[3] 测试中心死锁" ToolTip="强制两车同时抢占中心 Node 0，测试死锁规避或锁竞争逻辑" Command="{Binding TestDeadlockCommand}" Height="30" Padding="15,0" FontSize="14" Background="#FFEBEE" BorderBrush="#EF5350" Foreground="#D32F2F"/>
                 <Button Content="[4] 就近分配测试" ToolTip="核心测试：3台车不同距离，验证调度引擎是否精确挑选最近的R3" Command="{Binding RunTestTwo_NearestAllocationCommand}" Height="30" Padding="15,0" FontSize="14" Margin="10,0,0,0" Background="#E0F7FA" BorderBrush="#00ACC1"/>
             </StackPanel>
+            
+            <!-- 生产节拍模拟 (冲刺2) 控制组 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,10">
+                <TextBlock Text="生产进度模拟 (Sprint 2):" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,15,0" Foreground="#6A1B9A"/>
+                <Button Content="[初始化] 3台车待命" ToolTip="重置沙盘并放置 3 台 AGV 处于三向待命区" Command="{Binding InitThreeRobotsCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#F3E5F5" BorderBrush="#CE93D8"/>
+                <Button Content="[单次呼叫] 1号机床需要上料" ToolTip="模拟一号机床发起临时上料请求：原料区->1号机床->停车区" Command="{Binding CallMachineOneMaterialCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#FFF3E0" BorderBrush="#FFB74D"/>
+                <Button Content="[连续模拟] 开启/关闭工厂自动接单" ToolTip="循环下发随机生产任务，模拟工厂真实运行节拍" Command="{Binding ToggleContinuousSimulationCommand}" Height="30" Padding="15,0" FontSize="14" Background="#E8F5E9" BorderBrush="#81C784"/>
+            </StackPanel>
         </StackPanel>
 
         <!-- 机器人模拟区域及微型路网 -->

@@ -1,3 +1,4 @@
+using BasicRegionNavigation.Common;
 using System.Collections.Generic;
 
 namespace BasicRegionNavigation.Core.Entities
@@ -14,8 +15,8 @@ namespace BasicRegionNavigation.Core.Entities
         // 区域管制名称 (如 Zone_A)
         public string ZoneName { get; set; }
 
-        // 节点类型 (如 Normal, Charging, Safety)
-        public string NodeType { get; set; } = "Normal";
+        // 节点类型 (枚举替代原本的 string)
+        public NodeType NodeType { get; set; } = NodeType.Normal;
 
         // 相邻节点列表
         public List<int> ConnectedNodeIds { get; set; } = new List<int>();

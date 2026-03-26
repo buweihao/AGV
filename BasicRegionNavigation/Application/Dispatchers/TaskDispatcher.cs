@@ -75,7 +75,7 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             {
                 // 1. 寻找最近的充电节点
                 var chargingNode = _mapNodes
-                    .Where(n => n.NodeType == "Charging")
+                    .Where(n => n.NodeType == NodeType.Charging)
                     .OrderBy(n => Math.Sqrt(Math.Pow(n.X - robot.CurrentX, 2) + Math.Pow(n.Y - robot.CurrentY, 2)))
                     .FirstOrDefault();
 
@@ -138,15 +138,26 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 IRobot closestRobot = null;
                 double minDistance = double.MaxValue;
 
+                Serilog.Log.Debug($"[调度计算] 正在为任务 {firstOrder.OrderId} 挑选最近空闲车辆 (目标节点: {firstStage.TargetNodeId})");
+
                 foreach (var robot in availableRobots)
                 {
                     // 获取小车当前所在节点的位置信息
                     var currentRobotNode = _mapNodes.FirstOrDefault(n => n.Id == robot.CurrentNode);
-                    if (currentRobotNode == null) continue;
+                    if (currentRobotNode == null)
+                    {
+                        Serilog.Log.Warning($"[调度计算] 车辆 {robot.Id} 当前所在节点 {robot.CurrentNode} 在地图中不存在，跳过。");
+                        continue;
+                    }
 
-                    double dx = currentRobotNode.X - evalNode.X;
-                    double dy = currentRobotNode.Y - evalNode.Y;
-                    double distance = Math.Sqrt(dx * dx + dy * dy);
+                    // double dx = currentRobotNode.X - evalNode.X;
+                    // double dy = currentRobotNode.Y - evalNode.Y;
+                    // double distance = Math.Sqrt(dx * dx + dy * dy);
+
+                    // 【核心修改】使用 A* 计算实际路网距离，而不是直线距离
+                    double distance = BasicRegionNavigation.Common.PathFinder.CalculateActualDistance(currentRobotNode, evalNode, _mapNodes);
+
+                    Serilog.Log.Debug($"[调度计算] 车辆 {robot.Id} (节点:{robot.CurrentNode}) 到目标节点 {firstStage.TargetNodeId} 的路网实际路线距离为: {distance:F1}");
 
                     if (distance < minDistance)
                     {
@@ -155,7 +166,13 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     }
                 }
 
-                if (closestRobot == null) return;
+                if (closestRobot == null)
+                {
+                    Serilog.Log.Warning($"[调度计算] 任务 {firstOrder.OrderId} 找不到可计算距离的车辆，暂时无法派发。");
+                    return;
+                }
+
+                Serilog.Log.Information($"[调度计算] 匹配成功！任务 {firstOrder.OrderId} 分配给最近车辆: {closestRobot.Id} (距离:{minDistance:F1})");
 
                 // 4. 确定分配：出队并加入缓存执行
                 var order = _orderQueue.Dequeue();
@@ -295,6 +312,18 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             catch (Exception ex)
             {
                 Console.WriteLine($"[TaskDispatcher] 数据库更新失败: {ex.Message}");
+            }
+        }
+        /// <summary>
+        /// 断开与所有车辆的事件绑定，防止内存泄漏或重复调度
+        /// </summary>
+        public void UnsubscribeFromRobots()
+        {
+            if (_robots == null) return;
+            foreach (var robot in _robots)
+            {
+                robot.OnRobotStateChanged -= HandleRobotStateChanged;
+                robot.OnBatteryLow -= OnRobotBatteryLow;
             }
         }
     }

@@ -207,7 +207,7 @@ namespace BasicRegionNavigation.Infrastructure.Robots
             if (!_cancelFlag && reachedTarget)
             {
                 // 到达终点后的特殊逻辑：充电处理
-                if (ultimateTargetNode.NodeType == "Charging")
+                if (ultimateTargetNode.NodeType == NodeType.Charging)
                 {
                     _isCharging = true;
                     SetState(RobotState.CHARGING);
