@@ -1,5 +1,6 @@
 using BasicRegionNavigation.Common;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace BasicRegionNavigation.Core.Entities
 {
@@ -16,6 +17,7 @@ namespace BasicRegionNavigation.Core.Entities
         public string ZoneName { get; set; }
 
         // 节点类型 (枚举替代原本的 string)
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public NodeType NodeType { get; set; } = NodeType.Normal;
 
         // 相邻节点列表

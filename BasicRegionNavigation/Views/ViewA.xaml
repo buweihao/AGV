@@ -76,6 +76,20 @@
                 <Button Content="[单次呼叫] 1号机床需要上料" ToolTip="模拟一号机床发起临时上料请求：原料区->1号机床->停车区" Command="{Binding CallMachineOneMaterialCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#FFF3E0" BorderBrush="#FFB74D"/>
                 <Button Content="[连续模拟] 开启/关闭工厂自动接单" ToolTip="循环下发随机生产任务，模拟工厂真实运行节拍" Command="{Binding ToggleContinuousSimulationCommand}" Height="30" Padding="15,0" FontSize="14" Background="#E8F5E9" BorderBrush="#81C784"/>
             </StackPanel>
+
+            <!-- 自定义配置任务流 (Sprint 2.1) -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,15">
+                <TextBlock Text="任务模版派单:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,15,0" Foreground="#0277BD"/>
+                <ComboBox ItemsSource="{Binding TaskTemplates}" 
+                          SelectedItem="{Binding SelectedTaskTemplate}"
+                          DisplayMemberPath="TemplateName"
+                          Width="220" Height="32" VerticalContentAlignment="Center" FontSize="14" BorderBrush="#0277BD"/>
+                <Button Content="🚀 派发定制任务" 
+                        ToolTip="按照选中的 JSON 配置模版下发完整动作任务流"
+                        Command="{Binding DispatchSelectedTemplateCommand}" 
+                        Height="32" Padding="20,0" FontSize="14" FontWeight="Bold" Margin="15,0,0,0" 
+                        Background="#E3F2FD" BorderBrush="#0277BD" BorderThickness="2" Foreground="#01579B"/>
+            </StackPanel>
         </StackPanel>
 
         <!-- 机器人模拟区域及微型路网 -->

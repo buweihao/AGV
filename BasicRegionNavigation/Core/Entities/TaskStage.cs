@@ -18,5 +18,10 @@ namespace BasicRegionNavigation.Core.Entities
         /// 阶段描述，例如“前往取货点”、“等待装料”
         /// </summary>
         [ObservableProperty] private string _stageName;
+
+        /// <summary>
+        /// 关联的 PLC 动作码 (如 Plc_Load, Plc_Unload, None)
+        /// </summary>
+        [ObservableProperty] private string _actionCode;
     }
 }

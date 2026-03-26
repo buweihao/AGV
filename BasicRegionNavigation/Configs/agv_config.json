@@ -1,0 +1,46 @@
+{
+  "MapNodes": [
+    { "Id": 0, "X": 300, "Y": 300, "ZoneName": "Zone_Center", "ConnectedNodeIds": [11, 12, 13, 14] },
+    { "Id": 1, "X": 300, "Y": 180, "ConnectedNodeIds": [11] },
+    { "Id": 2, "X": 300, "Y": 500, "ConnectedNodeIds": [12, 15, 20] },
+    { "Id": 3, "X": 500, "Y": 300, "ConnectedNodeIds": [13, 10] },
+    { "Id": 4, "X": 100, "Y": 300, "ConnectedNodeIds": [14, 5] },
+    { "Id": 11, "X": 300, "Y": 220, "ZoneName": "Zone_Center", "ConnectedNodeIds": [0, 1] },
+    { "Id": 12, "X": 300, "Y": 380, "ZoneName": "Zone_Center", "ConnectedNodeIds": [0, 2] },
+    { "Id": 13, "X": 380, "Y": 300, "ZoneName": "Zone_Center", "ConnectedNodeIds": [0, 3] },
+    { "Id": 14, "X": 220, "Y": 300, "ZoneName": "Zone_Center", "ConnectedNodeIds": [0, 4] },
+    { "Id": 5, "X": 100, "Y": 100, "ZoneName": "Zone_A", "ConnectedNodeIds": [8] },
+    { "Id": 8, "X": 233, "Y": 100, "ZoneName": "Zone_A", "ConnectedNodeIds": [9] },
+    { "Id": 9, "X": 366, "Y": 100, "ZoneName": "Zone_A", "ConnectedNodeIds": [6] },
+    { "Id": 6, "X": 500, "Y": 100, "ZoneName": "Zone_A", "ConnectedNodeIds": [3] },
+    { "Id": 15, "X": 400, "Y": 500, "NodeType": "Charging", "ConnectedNodeIds": [2, 7] },
+    { "Id": 7, "X": 500, "Y": 500, "NodeType": "Charging", "ConnectedNodeIds": [15, 16] },
+    { "Id": 16, "X": 600, "Y": 500, "NodeType": "Charging", "ConnectedNodeIds": [7, 17] },
+    { "Id": 17, "X": 700, "Y": 500, "NodeType": "Charging", "ConnectedNodeIds": [16, 18] },
+    { "Id": 18, "X": 800, "Y": 500, "NodeType": "Charging", "ConnectedNodeIds": [17, 19] },
+    { "Id": 19, "X": 900, "Y": 500, "NodeType": "Charging", "ConnectedNodeIds": [18] },
+    { "Id": 10, "X": 650, "Y": 300, "NodeType": "Parking", "ConnectedNodeIds": [3] },
+    { "Id": 20, "X": 150, "Y": 500, "ConnectedNodeIds": [2, 21] },
+    { "Id": 21, "X": 150, "Y": 600, "NodeType": "Charging", "ConnectedNodeIds": [20, 22] },
+    { "Id": 22, "X": 150, "Y": 700, "NodeType": "Charging", "ConnectedNodeIds": [21] }
+  ],
+  "TaskTemplates": [
+    {
+      "TemplateId": "Task_A_StandardLoad",
+      "TemplateName": "A: 标准上料测试流程",
+      "Stages": [
+        { "TargetNodeId": 5, "ActionCode": "None", "WaitTimeMs": 0, "StageName": "前往取料辅道" },
+        { "TargetNodeId": 8, "ActionCode": "Plc_Load", "WaitTimeMs": 3000, "StageName": "对接PLC装料" },
+        { "TargetNodeId": 10, "ActionCode": "None", "WaitTimeMs": 0, "StageName": "任务完成回位" }
+      ]
+    },
+    {
+      "TemplateId": "Task_B_ChargingLoop",
+      "TemplateName": "B: 自动补电维护流",
+      "Stages": [
+        { "TargetNodeId": 2, "ActionCode": "None", "WaitTimeMs": 0, "StageName": "前往充电区入口" },
+        { "TargetNodeId": 15, "ActionCode": "Plc_Unload", "WaitTimeMs": 5000, "StageName": "执行模拟补电" }
+      ]
+    }
+  ]
+}

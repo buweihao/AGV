@@ -248,8 +248,13 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     // 执行移动
                     await robot.GoToNodeAsync(targetNode);
 
-                    // 到达后的动作停留
-                    if (currentStage.WaitTimeMs > 0)
+                    // 到达后的动作处理器
+                    if (!string.IsNullOrEmpty(currentStage.ActionCode) && currentStage.ActionCode != "None")
+                    {
+                        order.StageDescription = $"{currentStage.StageName} (执行: {currentStage.ActionCode})";
+                        await ExecuteStageActionAsync(currentStage);
+                    }
+                    else if (currentStage.WaitTimeMs > 0)
                     {
                         order.StageDescription = $"{currentStage.StageName} (等待 {currentStage.WaitTimeMs}ms)";
                         await Task.Delay(currentStage.WaitTimeMs);
@@ -315,8 +320,38 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             }
         }
         /// <summary>
-        /// 断开与所有车辆的事件绑定，防止内存泄漏或重复调度
+        /// 模拟执行具体的业务动作（如 PLC 握手、装卸料）
         /// </summary>
+        private async Task ExecuteStageActionAsync(TaskStage stage)
+        {
+            Serilog.Log.Information($"[动作开始] 执行业务码: {stage.ActionCode}, 预计耗时: {stage.WaitTimeMs}ms");
+
+            switch (stage.ActionCode)
+            {
+                case "Plc_Load":
+                    // 模拟 PLC 装料逻辑
+                    await Task.Delay(stage.WaitTimeMs);
+                    Serilog.Log.Information("[动作完成] PLC 装料成功。");
+                    break;
+
+                case "Plc_Unload":
+                    // 模拟 PLC 卸料逻辑
+                    await Task.Delay(stage.WaitTimeMs);
+                    Serilog.Log.Information("[动作完成] PLC 卸料成功。");
+                    break;
+
+                case "Mock_Docking":
+                    // 模拟充电桩对接
+                    await Task.Delay(2000);
+                    break;
+
+                default:
+                    // 默认延时兜底
+                    if (stage.WaitTimeMs > 0) await Task.Delay(stage.WaitTimeMs);
+                    break;
+            }
+        }
+
         public void UnsubscribeFromRobots()
         {
             if (_robots == null) return;
