@@ -1,4 +1,4 @@
-﻿using BasicRegionNavigation.ViewModels;
+using BasicRegionNavigation.ViewModels;
 using Core;
 using HandyControl.Controls;
 using System.Globalization;
@@ -20,10 +20,65 @@ namespace BasicRegionNavigation.Views
         public ViewA()
         {
             InitializeComponent();
-
         }
 
+        private Point _dragStartPoint;
+        private bool _isDragging = false;
 
+        private void MapScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            e.Handled = true; 
+            
+            double zoomFactor = e.Delta > 0 ? 1.1 : 0.9;
+            double newScale = Math.Max(0.2, Math.Min(5.0, MapScaleTransform.ScaleX * zoomFactor));
+
+            Point relativePoint = e.GetPosition(MapCanvas);
+            
+            MapScaleTransform.ScaleX = newScale;
+            MapScaleTransform.ScaleY = newScale;
+            
+            MapScrollViewer.ScrollToHorizontalOffset(relativePoint.X * newScale - e.GetPosition(MapScrollViewer).X);
+            MapScrollViewer.ScrollToVerticalOffset(relativePoint.Y * newScale - e.GetPosition(MapScrollViewer).Y);
+        }
+
+        private void MapScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed || e.MiddleButton == MouseButtonState.Pressed)
+            {
+                if (e.Source is Button || e.Source is System.Windows.Controls.TextBox || e.Source is System.Windows.Controls.ComboBox) 
+                    return;
+
+                _dragStartPoint = e.GetPosition(MapScrollViewer);
+                _isDragging = true;
+                MapScrollViewer.CaptureMouse();
+                e.Handled = true;
+                MapScrollViewer.Cursor = Cursors.Hand;
+            }
+        }
+
+        private void MapScrollViewer_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isDragging)
+            {
+                Point currentPoint = e.GetPosition(MapScrollViewer);
+                Vector diff = _dragStartPoint - currentPoint;
+                
+                MapScrollViewer.ScrollToHorizontalOffset(MapScrollViewer.HorizontalOffset + diff.X);
+                MapScrollViewer.ScrollToVerticalOffset(MapScrollViewer.VerticalOffset + diff.Y);
+                
+                _dragStartPoint = currentPoint;
+            }
+        }
+
+        private void MapScrollViewer_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isDragging)
+            {
+                _isDragging = false;
+                MapScrollViewer.ReleaseMouseCapture();
+                MapScrollViewer.Cursor = Cursors.Arrow;
+            }
+        }
 
         private void EditText_Click(object sender, RoutedEventArgs e)
         {

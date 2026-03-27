@@ -218,12 +218,12 @@ namespace BasicRegionNavigation.ViewModels
             robot3.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot3X = x; Robot3Y = y; }); };
 
             // 初始占位申请
-            var startNode1 = MapNodes.First(n => n.Id == 4);
-            var startNode2 = MapNodes.First(n => n.Id == 3);
-            var startNode3 = MapNodes.First(n => n.Id == 1);
-            _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode1), "AGV-1");
-            _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode2), "AGV-2");
-            _ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode3), "AGV-3");
+            //var startNode1 = MapNodes.First(n => n.Id == 4);
+            //var startNode2 = MapNodes.First(n => n.Id == 3);
+            //var startNode3 = MapNodes.First(n => n.Id == 1);
+            //_ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode1), "AGV-1");
+            //_ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode2), "AGV-2");
+            //_ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode3), "AGV-3");
 
             _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2, robot3 };
             RobotList = new ObservableCollection<IRobot>(_robots);

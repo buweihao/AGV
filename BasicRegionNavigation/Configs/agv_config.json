@@ -1,121 +1,889 @@
 {
   "MapNodes": [
     {
-      "Id": 1,
-      "X": 400,
-      "Y": 250,
-      "ZoneName": "Zone_1",
-      "NodeType": "Normal",
-      "ConnectedNodeIds": [
-        5,
-        2,
-        4
-      ]
-    },
-    {
       "Id": 2,
-      "X": 550,
-      "Y": 250,
-      "ZoneName": "Zone_1",
+      "X": 1100,
+      "Y": 1050,
+      "ZoneName": "Zone_H",
       "NodeType": "Normal",
       "ConnectedNodeIds": [
-        3
-      ]
-    },
-    {
-      "Id": 3,
-      "X": 700,
-      "Y": 250,
-      "ZoneName": "Zone_1",
-      "NodeType": "Normal",
-      "ConnectedNodeIds": [
-        6
-      ]
-    },
-    {
-      "Id": 4,
-      "X": 400,
-      "Y": 350,
-      "ZoneName": "Zone_4",
-      "NodeType": "Normal",
-      "ConnectedNodeIds": [
-        1
+        61,
+        82
       ]
     },
     {
       "Id": 5,
-      "X": 400,
-      "Y": 150,
-      "ZoneName": "Zone_5",
+      "X": 1250,
+      "Y": 1050,
+      "ZoneName": "Zone_G",
       "NodeType": "Normal",
       "ConnectedNodeIds": [
-        1
+        2,
+        18
       ]
     },
     {
-      "Id": 6,
-      "X": 800,
-      "Y": 250,
-      "ZoneName": "Zone_6",
+      "Id": 8,
+      "X": 1650,
+      "Y": 1050,
+      "ZoneName": "Zone_E",
       "NodeType": "Normal",
       "ConnectedNodeIds": [
-        7,
+        11,
+        16
+      ]
+    },
+    {
+      "Id": 10,
+      "X": 1250,
+      "Y": 950,
+      "ZoneName": "Zone_B",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        65,
+        58,
+        24
+      ]
+    },
+    {
+      "Id": 11,
+      "X": 1450,
+      "Y": 1050,
+      "ZoneName": "Zone_F",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        5,
+        17
+      ]
+    },
+    {
+      "Id": 12,
+      "X": 1450,
+      "Y": 950,
+      "ZoneName": "Zone_C",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        23
+      ]
+    },
+    {
+      "Id": 13,
+      "X": 1650,
+      "Y": 950,
+      "ZoneName": "Zone_D",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        67,
+        60,
+        15
+      ]
+    },
+    {
+      "Id": 15,
+      "X": 1650,
+      "Y": 800,
+      "ZoneName": "Zone_D",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        22,
+        13
+      ]
+    },
+    {
+      "Id": 16,
+      "X": 1650,
+      "Y": 1200,
+      "ZoneName": "Zone_E",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        69,
+        64,
         8
       ]
     },
     {
-      "Id": 7,
-      "X": 800,
-      "Y": 150,
-      "ZoneName": "Zone_7",
+      "Id": 17,
+      "X": 1450,
+      "Y": 1200,
+      "ZoneName": "Zone_F",
       "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        70,
+        63,
+        11
+      ]
+    },
+    {
+      "Id": 18,
+      "X": 1250,
+      "Y": 1200,
+      "ZoneName": "Zone_G",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        71,
+        62,
+        5
+      ]
+    },
+    {
+      "Id": 22,
+      "X": 1900,
+      "Y": 800,
+      "ZoneName": "Zone_22",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        74
+      ]
+    },
+    {
+      "Id": 23,
+      "X": 1450,
+      "Y": 800,
+      "ZoneName": "Zone_C",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        15,
+        12
+      ]
+    },
+    {
+      "Id": 24,
+      "X": 1250,
+      "Y": 800,
+      "ZoneName": "Zone_B",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        23,
+        77,
+        10
+      ]
+    },
+    {
+      "Id": 25,
+      "X": 1100,
+      "Y": 800,
+      "ZoneName": "Zone_25",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        24,
+        57
+      ]
+    },
+    {
+      "Id": 26,
+      "X": 350,
+      "Y": 300,
+      "ZoneName": "Zone_X",
+      "NodeType": "Charging",
+      "ConnectedNodeIds": [
+        31
+      ]
+    },
+    {
+      "Id": 27,
+      "X": 450,
+      "Y": 300,
+      "ZoneName": "Zone_T",
+      "NodeType": "Charging",
+      "ConnectedNodeIds": [
+        32
+      ]
+    },
+    {
+      "Id": 28,
+      "X": 550,
+      "Y": 300,
+      "ZoneName": "Zone_U",
+      "NodeType": "Charging",
+      "ConnectedNodeIds": [
+        33
+      ]
+    },
+    {
+      "Id": 29,
+      "X": 650,
+      "Y": 300,
+      "ZoneName": "Zone_V",
+      "NodeType": "Charging",
+      "ConnectedNodeIds": [
+        34
+      ]
+    },
+    {
+      "Id": 30,
+      "X": 750,
+      "Y": 300,
+      "ZoneName": "Zone_W",
+      "NodeType": "Charging",
+      "ConnectedNodeIds": [
+        35
+      ]
+    },
+    {
+      "Id": 31,
+      "X": 350,
+      "Y": 400,
+      "ZoneName": "Zone_X",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        32,
+        26
+      ]
+    },
+    {
+      "Id": 32,
+      "X": 450,
+      "Y": 400,
+      "ZoneName": "Zone_T",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        33,
+        27
+      ]
+    },
+    {
+      "Id": 33,
+      "X": 550,
+      "Y": 400,
+      "ZoneName": "Zone_U",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        34,
+        28
+      ]
+    },
+    {
+      "Id": 34,
+      "X": 650,
+      "Y": 400,
+      "ZoneName": "Zone_V",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        35,
+        29
+      ]
+    },
+    {
+      "Id": 35,
+      "X": 750,
+      "Y": 400,
+      "ZoneName": "Zone_W",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        30,
+        75
+      ]
+    },
+    {
+      "Id": 36,
+      "X": 350,
+      "Y": 650,
+      "ZoneName": "Zone_O",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        40
+      ]
+    },
+    {
+      "Id": 37,
+      "X": 450,
+      "Y": 650,
+      "ZoneName": "Zone_P",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        41
+      ]
+    },
+    {
+      "Id": 38,
+      "X": 550,
+      "Y": 650,
+      "ZoneName": "Zone_Q",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        42
+      ]
+    },
+    {
+      "Id": 39,
+      "X": 650,
+      "Y": 650,
+      "ZoneName": "Zone_R",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        43
+      ]
+    },
+    {
+      "Id": 40,
+      "X": 350,
+      "Y": 750,
+      "ZoneName": "Zone_O",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        41,
+        36
+      ]
+    },
+    {
+      "Id": 41,
+      "X": 450,
+      "Y": 750,
+      "ZoneName": "Zone_P",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        42,
+        37
+      ]
+    },
+    {
+      "Id": 42,
+      "X": 550,
+      "Y": 750,
+      "ZoneName": "Zone_Q",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        43,
+        38
+      ]
+    },
+    {
+      "Id": 43,
+      "X": 650,
+      "Y": 750,
+      "ZoneName": "Zone_R",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        56,
+        39
+      ]
+    },
+    {
+      "Id": 44,
+      "X": 900,
+      "Y": 1050,
+      "ZoneName": "Zone_J",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        48,
+        47,
+        46,
+        45,
+        80
+      ]
+    },
+    {
+      "Id": 45,
+      "X": 800,
+      "Y": 950,
+      "ZoneName": "Zone_45",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        44
+      ]
+    },
+    {
+      "Id": 46,
+      "X": 900,
+      "Y": 950,
+      "ZoneName": "Zone_46",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        44
+      ]
+    },
+    {
+      "Id": 47,
+      "X": 1000,
+      "Y": 950,
+      "ZoneName": "Zone_47",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        44
+      ]
+    },
+    {
+      "Id": 48,
+      "X": 750,
+      "Y": 1050,
+      "ZoneName": "Zone_K",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        55,
+        49
+      ]
+    },
+    {
+      "Id": 49,
+      "X": 650,
+      "Y": 1050,
+      "ZoneName": "Zone_L",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        54,
+        50
+      ]
+    },
+    {
+      "Id": 50,
+      "X": 550,
+      "Y": 1050,
+      "ZoneName": "Zone_M",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        53,
+        51
+      ]
+    },
+    {
+      "Id": 51,
+      "X": 450,
+      "Y": 1050,
+      "ZoneName": "Zone_N",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        52,
+        40
+      ]
+    },
+    {
+      "Id": 52,
+      "X": 450,
+      "Y": 1150,
+      "ZoneName": "Zone_N",
+      "NodeType": "Wash",
+      "ConnectedNodeIds": [
+        51
+      ]
+    },
+    {
+      "Id": 53,
+      "X": 550,
+      "Y": 1150,
+      "ZoneName": "Zone_M",
+      "NodeType": "Wash",
+      "ConnectedNodeIds": [
+        50
+      ]
+    },
+    {
+      "Id": 54,
+      "X": 650,
+      "Y": 1150,
+      "ZoneName": "Zone_L",
+      "NodeType": "Wash",
+      "ConnectedNodeIds": [
+        49
+      ]
+    },
+    {
+      "Id": 55,
+      "X": 750,
+      "Y": 1150,
+      "ZoneName": "Zone_K",
+      "NodeType": "Wash",
+      "ConnectedNodeIds": [
+        48
+      ]
+    },
+    {
+      "Id": 56,
+      "X": 900,
+      "Y": 800,
+      "ZoneName": "Zone_A",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        25,
+        73
+      ]
+    },
+    {
+      "Id": 57,
+      "X": 1100,
+      "Y": 950,
+      "ZoneName": "Zone_57",
+      "NodeType": "Unload",
+      "ConnectedNodeIds": [
+        25
+      ]
+    },
+    {
+      "Id": 58,
+      "X": 1300,
+      "Y": 950,
+      "ZoneName": "Zone_58",
+      "NodeType": "Unload",
+      "ConnectedNodeIds": [
+        10
+      ]
+    },
+    {
+      "Id": 59,
+      "X": 1500,
+      "Y": 950,
+      "ZoneName": "Zone_59",
+      "NodeType": "Unload",
+      "ConnectedNodeIds": [
+        12
+      ]
+    },
+    {
+      "Id": 60,
+      "X": 1700,
+      "Y": 950,
+      "ZoneName": "Zone_60",
+      "NodeType": "Unload",
+      "ConnectedNodeIds": [
+        13
+      ]
+    },
+    {
+      "Id": 61,
+      "X": 1100,
+      "Y": 1200,
+      "ZoneName": "Zone_H",
+      "NodeType": "Unload",
+      "ConnectedNodeIds": [
+        2
+      ]
+    },
+    {
+      "Id": 62,
+      "X": 1300,
+      "Y": 1200,
+      "ZoneName": "Zone_62",
+      "NodeType": "Unload",
+      "ConnectedNodeIds": [
+        18
+      ]
+    },
+    {
+      "Id": 63,
+      "X": 1500,
+      "Y": 1200,
+      "ZoneName": "Zone_63",
+      "NodeType": "Unload",
+      "ConnectedNodeIds": [
+        17
+      ]
+    },
+    {
+      "Id": 64,
+      "X": 1700,
+      "Y": 1200,
+      "ZoneName": "Zone_64",
+      "NodeType": "Unload",
+      "ConnectedNodeIds": [
+        16
+      ]
+    },
+    {
+      "Id": 65,
+      "X": 1200,
+      "Y": 950,
+      "ZoneName": "Zone_65",
+      "NodeType": "Load",
+      "ConnectedNodeIds": [
+        10
+      ]
+    },
+    {
+      "Id": 66,
+      "X": 1400,
+      "Y": 950,
+      "ZoneName": "Zone_66",
+      "NodeType": "Load",
+      "ConnectedNodeIds": [
+        12
+      ]
+    },
+    {
+      "Id": 67,
+      "X": 1600,
+      "Y": 950,
+      "ZoneName": "Zone_67",
+      "NodeType": "Load",
+      "ConnectedNodeIds": [
+        13
+      ]
+    },
+    {
+      "Id": 68,
+      "X": 1800,
+      "Y": 1200,
+      "ZoneName": "Zone_68",
+      "NodeType": "Load",
+      "ConnectedNodeIds": [
+        74
+      ]
+    },
+    {
+      "Id": 69,
+      "X": 1600,
+      "Y": 1200,
+      "ZoneName": "Zone_69",
+      "NodeType": "Load",
+      "ConnectedNodeIds": [
+        16
+      ]
+    },
+    {
+      "Id": 70,
+      "X": 1400,
+      "Y": 1200,
+      "ZoneName": "Zone_70",
+      "NodeType": "Load",
+      "ConnectedNodeIds": [
+        17
+      ]
+    },
+    {
+      "Id": 71,
+      "X": 1200,
+      "Y": 1200,
+      "ZoneName": "Zone_71",
+      "NodeType": "Load",
+      "ConnectedNodeIds": [
+        18
+      ]
+    },
+    {
+      "Id": 72,
+      "X": 1800,
+      "Y": 950,
+      "ZoneName": "Zone_72",
+      "NodeType": "Load",
       "ConnectedNodeIds": []
     },
     {
-      "Id": 8,
-      "X": 800,
-      "Y": 350,
-      "ZoneName": "Zone_8",
+      "Id": 73,
+      "X": 900,
+      "Y": 700,
+      "ZoneName": "Zone_A",
+      "NodeType": "Buffer",
+      "ConnectedNodeIds": [
+        56
+      ]
+    },
+    {
+      "Id": 74,
+      "X": 1900,
+      "Y": 1050,
+      "ZoneName": "Zone_74",
       "NodeType": "Normal",
-      "ConnectedNodeIds": []
+      "ConnectedNodeIds": [
+        8,
+        68
+      ]
+    },
+    {
+      "Id": 75,
+      "X": 1250,
+      "Y": 400,
+      "ZoneName": "Zone_75",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        76
+      ]
+    },
+    {
+      "Id": 76,
+      "X": 1400,
+      "Y": 400,
+      "ZoneName": "Zone_76",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        23
+      ]
+    },
+    {
+      "Id": 77,
+      "X": 1250,
+      "Y": 500,
+      "ZoneName": "Zone_77",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        78
+      ]
+    },
+    {
+      "Id": 78,
+      "X": 950,
+      "Y": 450,
+      "ZoneName": "Zone_78",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        79
+      ]
+    },
+    {
+      "Id": 79,
+      "X": 350,
+      "Y": 500,
+      "ZoneName": "Zone_79",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        31
+      ]
+    },
+    {
+      "Id": 80,
+      "X": 900,
+      "Y": 1450,
+      "ZoneName": "Zone_J",
+      "NodeType": "Unload",
+      "ConnectedNodeIds": [
+        44
+      ]
+    },
+    {
+      "Id": 81,
+      "X": 1000,
+      "Y": 1450,
+      "ZoneName": "Zone_I",
+      "NodeType": "Load",
+      "ConnectedNodeIds": [
+        82
+      ]
+    },
+    {
+      "Id": 82,
+      "X": 1000,
+      "Y": 1050,
+      "ZoneName": "Zone_I",
+      "NodeType": "Normal",
+      "ConnectedNodeIds": [
+        44,
+        81
+      ]
     }
   ],
   "TaskTemplates": [
     {
-      "TemplateId": "Task_1774508506178",
-      "TemplateName": "新建任务流程1",
+      "TemplateId": "Task_1774520435682",
+      "TemplateName": "模组1上料",
       "Stages": [
         {
-          "TargetNodeId": 5,
-          "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "前往 Zone_5"
+          "TargetNodeId": 73,
+          "ActionCode": "Plc_OpenDoor",
+          "WaitTimeMs": 5000,
+          "StageName": "前往 Zone_73"
         },
         {
-          "TargetNodeId": 8,
-          "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "前往 Zone_8"
+          "TargetNodeId": 65,
+          "ActionCode": "Plc_Load",
+          "WaitTimeMs": 10000,
+          "StageName": "前往 Zone_65"
+        },
+        {
+          "TargetNodeId": 55,
+          "ActionCode": "Plc_Wash",
+          "WaitTimeMs": 5000,
+          "StageName": "前往 Zone_55"
+        },
+        {
+          "TargetNodeId": 57,
+          "ActionCode": "Plc_Unload",
+          "WaitTimeMs": 5000,
+          "StageName": "前往 Zone_57"
+        },
+        {
+          "TargetNodeId": 73,
+          "ActionCode": "Plc_OpenDoor",
+          "WaitTimeMs": 5000,
+          "StageName": "前往 Zone_73"
         }
       ]
+    }
+  ],
+  "VisualElements": [
+    {
+      "id": 1774519477498,
+      "type": "rect",
+      "x1": 1100,
+      "y1": 850,
+      "x2": 1200,
+      "y2": 950
     },
     {
-      "TemplateId": "Task_1774508551674",
-      "TemplateName": "新建任务流程2",
-      "Stages": [
-        {
-          "TargetNodeId": 4,
-          "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "前往 Zone_4"
-        },
-        {
-          "TargetNodeId": 7,
-          "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "前往 Zone_7"
-        }
-      ]
+      "id": 1774519576193,
+      "type": "rect",
+      "x1": 1300,
+      "y1": 850,
+      "x2": 1400,
+      "y2": 950
+    },
+    {
+      "id": 1774519577724,
+      "type": "rect",
+      "x1": 1500,
+      "y1": 850,
+      "x2": 1600,
+      "y2": 950
+    },
+    {
+      "id": 1774519580266,
+      "type": "rect",
+      "x1": 1700,
+      "y1": 850,
+      "x2": 1800,
+      "y2": 950
+    },
+    {
+      "id": 1774519586540,
+      "type": "rect",
+      "x1": 1100,
+      "y1": 1100,
+      "x2": 1200,
+      "y2": 1200
+    },
+    {
+      "id": 1774519599092,
+      "type": "rect",
+      "x1": 1300,
+      "y1": 1100,
+      "x2": 1400,
+      "y2": 1200
+    },
+    {
+      "id": 1774519600403,
+      "type": "rect",
+      "x1": 1500,
+      "y1": 1100,
+      "x2": 1600,
+      "y2": 1200
+    },
+    {
+      "id": 1774519601670,
+      "type": "rect",
+      "x1": 1700,
+      "y1": 1100,
+      "x2": 1800,
+      "y2": 1200
+    },
+    {
+      "id": 1774519644043,
+      "type": "rect",
+      "x1": 950,
+      "y1": 500,
+      "x2": 1200,
+      "y2": 650
+    },
+    {
+      "id": 1774519658674,
+      "type": "rect",
+      "x1": 1450,
+      "y1": 500,
+      "x2": 1750,
+      "y2": 650
+    },
+    {
+      "id": 1774519722267,
+      "type": "rect",
+      "x1": 900,
+      "y1": 1350,
+      "x2": 1000,
+      "y2": 1450
     }
   ]
 }

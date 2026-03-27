@@ -60,6 +60,10 @@ namespace BasicRegionNavigation.Applications.Dispatchers
         {
             if (state == RobotState.IDLE)
             {
+                foreach (var robot in _robots.Where(r => r.State == RobotState.IDLE && r.BatteryLevel <= 20 && !_dispatchedRobotsCache.Contains(r.Id)))
+                {
+                    OnRobotBatteryLow(robot);
+                }
                 TryDispatch();
             }
         }
@@ -91,7 +95,11 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     chargeOrder.Stages.Enqueue(new TaskStage { TargetNodeId = chargingNode.Id, WaitTimeMs = 0, StageName = "前往快速补电" });
 
                     Serilog.Log.Information($"[自动回充] 侦测到小车 {robot.Id} 电量低 ({robot.BatteryLevel:F1}%)，自动下发任务至充电桩 {chargingNode.Id}");
-                    SubmitTask(chargeOrder);
+                    
+                    _dispatchedRobotsCache.Add(robot.Id);
+                    chargeOrder.AssignedRobotId = robot.Id;
+                    chargeOrder.Status = TaskStatus.Executing;
+                    _ = ExecuteTaskAsync(robot, chargeOrder);
                 }
             }
         }
@@ -127,9 +135,9 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     continue;
                 }
 
-                // 2. 寻找当前真正空闲且未被预占的小车
+                // 2. 寻找当前真正空闲且未被预占的小车，且电量必须健康
                 var availableRobots = _robots
-                    .Where(r => r.State == RobotState.IDLE && !_dispatchedRobotsCache.Contains(r.Id))
+                    .Where(r => r.State == RobotState.IDLE && r.BatteryLevel > 20 && !_dispatchedRobotsCache.Contains(r.Id))
                     .ToList();
                 
                 if (availableRobots.Count == 0) return; 

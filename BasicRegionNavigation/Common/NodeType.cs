@@ -25,6 +25,28 @@ namespace BasicRegionNavigation.Common
         /// <summary>
         /// 停放点/等待位
         /// </summary>
-        Parking
+        Parking,
+
+        // --- 以下为需要新增的类型 ---
+
+        /// <summary>
+        /// 清洗节点
+        /// </summary>
+        Wash,
+
+        /// <summary>
+        /// 卸料/下料节点
+        /// </summary>
+        Unload,
+
+        /// <summary>
+        /// 装料/上料节点
+        /// </summary>
+        Load,
+
+        /// <summary>
+        /// 缓冲节点
+        /// </summary>
+        Buffer
     }
 }
