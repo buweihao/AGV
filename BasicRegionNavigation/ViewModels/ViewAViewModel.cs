@@ -43,6 +43,7 @@ namespace BasicRegionNavigation.ViewModels
     {
         private List<BasicRegionNavigation.Core.Interfaces.IRobot> _robots;
         private BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher _taskDispatcher;
+        private ITrafficController _trafficController;
 
         [ObservableProperty]
         private int _currentNode;
@@ -97,6 +98,9 @@ namespace BasicRegionNavigation.ViewModels
 
         [ObservableProperty]
         private ObservableCollection<IRobot> _robotList;
+
+        [ObservableProperty]
+        private ObservableCollection<LockInfo> _activeLocks = new ObservableCollection<LockInfo>();
 
         private readonly IAlarmHistoryService _alarmHistoryService;
         private readonly IModbusService _modbusService;
@@ -169,12 +173,12 @@ namespace BasicRegionNavigation.ViewModels
 
             TargetNode = MapNodes.FirstOrDefault();
 
-            var trafficController = new BasicRegionNavigation.Applications.Controllers.TrafficController();
+            _trafficController = new BasicRegionNavigation.Applications.Controllers.TrafficController();
 
             // 实例化两台小车
             var robot1 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-1",
-                trafficController: trafficController,
+                trafficController: _trafficController,
                 logger: _loggerService, // 【新增】传入日志服务
                 mapNodes: MapNodes,
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-1: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
@@ -189,7 +193,7 @@ namespace BasicRegionNavigation.ViewModels
 
             var robot2 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-2",
-                trafficController: trafficController,
+                trafficController: _trafficController,
                 logger: _loggerService, // 【新增】传入日志服务
                 mapNodes: MapNodes,
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-2: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
@@ -204,7 +208,7 @@ namespace BasicRegionNavigation.ViewModels
 
             var robot3 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-3",
-                trafficController: trafficController,
+                trafficController: _trafficController,
                 logger: _loggerService,
                 mapNodes: MapNodes,
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-3: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
@@ -229,7 +233,7 @@ namespace BasicRegionNavigation.ViewModels
             RobotList = new ObservableCollection<IRobot>(_robots);
 
             // 实例化 Dispatcher
-            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService, trafficController);
+            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService, _trafficController);
             _taskDispatcher.OnTaskCompleted += (order) =>
             {
                 Application.Current.Dispatcher.InvokeAsync(async () =>
@@ -239,10 +243,37 @@ namespace BasicRegionNavigation.ViewModels
                 });
             };
 
-            // 初始化模组服务等
             InitializeModules(new[] { "1", "2" });
             _modbusService.OnModuleDataChanged += HandleDataChanged;
             InitializeSubscriptions(_modbusService);
+
+            // 启动频率为 500ms 的锁状态轮询
+            StartLockMonitoring();
+        }
+
+        private void StartLockMonitoring()
+        {
+            Task.Run(async () =>
+            {
+                while (true)
+                {
+                    if (_trafficController != null)
+                    {
+                        var locks = _trafficController.GetAllLocks();
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            // 增量更新或全量覆盖
+                            // 这里简单起见直接全量覆盖
+                            ActiveLocks.Clear();
+                            foreach (var kvp in locks)
+                            {
+                                ActiveLocks.Add(new LockInfo { ZoneName = kvp.Key, RobotId = kvp.Value });
+                            }
+                        });
+                    }
+                    await Task.Delay(500);
+                }
+            });
         }
 
         /// <summary>
@@ -269,6 +300,7 @@ namespace BasicRegionNavigation.ViewModels
                         TaskTemplates = config.TaskTemplates;
                         SelectedTaskTemplate = TaskTemplates.FirstOrDefault();
 
+                        ComputeDisplayLabels();
                         GenerateEdges(MapNodes);
                         Serilog.Log.Information($"[系统配置] 加载成功. 节点:{MapNodes.Count}, 模板:{TaskTemplates.Count}");
                         return;
@@ -287,7 +319,28 @@ namespace BasicRegionNavigation.ViewModels
                 new LogicNode { Id = 2, X = 300, Y = 100, ConnectedNodeIds = new List<int>{ 1 } }
             };
             TaskTemplates = new ObservableCollection<TaskTemplate>();
+            ComputeDisplayLabels();
             GenerateEdges(MapNodes);
+        }
+
+        private void ComputeDisplayLabels()
+        {
+            if (MapNodes == null) return;
+            var groups = MapNodes.GroupBy(n => Global.GetZoneName(n))
+                                 .ToDictionary(g => g.Key, g => g.Count());
+            
+            foreach (var node in MapNodes)
+            {
+                string zone = Global.GetZoneName(node);
+                if (groups.ContainsKey(zone) && groups[zone] >= 2)
+                {
+                    node.DisplayLabel = zone;
+                }
+                else
+                {
+                    node.DisplayLabel = "";
+                }
+            }
         }
 
         /// <summary>

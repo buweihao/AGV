@@ -21,6 +21,9 @@ namespace BasicRegionNavigation.Applications.Dispatchers
         private readonly IDatabaseService _databaseService; // 【新增】数据库服务，用于持久化任务历史
         private readonly ITrafficController _trafficController;
         
+        // 【新增】防重分配缓存：存储已静态或动态预占的节点（配合动态终点）
+        private readonly HashSet<int> _reservedNodesCache = new HashSet<int>();
+
         // 防止空闲车在排队或评估期间被二次派发任务
         private readonly HashSet<string> _dispatchedRobotsCache = new HashSet<string>();
 
@@ -189,14 +192,14 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 order.AssignedRobotId = closestRobot.Id;
                 order.Status = TaskStatus.Executing;
 
-                _ = ExecuteTaskAsync(closestRobot, order);
+                _ = ExecuteTaskAsync(closestRobot, order, minDistance);
             }
         }
 
         /// <summary>
         /// 多段任务流执行逻辑：按顺序依次执行所有 Stage
         /// </summary>
-        private async Task ExecuteTaskAsync(IRobot robot, TaskOrder order)
+        private async Task ExecuteTaskAsync(IRobot robot, TaskOrder order, double priorityDistance = 0)
         {
             // ====== 任务开始时写入数据库 (状态: 执行中) ======
             var firstNode = _mapNodes.FirstOrDefault(n => n.Id == (order.Stages.Peek()?.TargetNodeId ?? 0));
@@ -211,17 +214,73 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             };
             await SafeInsertTaskHistoryAsync(taskHistory);
 
+            var reservedNodesThisOrder = new List<int>(); // 【新增】跟踪该订单的动态保留
+
             try
             {
                 while (order.Stages.Count > 0)
                 {
                     var currentStage = order.Stages.Dequeue();
+
+                    // 【新增：动态寻址处理】
+                    if (currentStage.TargetNodeId == 0 && currentStage.DynamicTargetType.HasValue)
+                    {
+                        while (true)
+                        {
+                            var currentRobotNode = _mapNodes.FirstOrDefault(n => n.Id == robot.CurrentNode);
+                            var candidates = _mapNodes.Where(n =>
+                                n.NodeType == currentStage.DynamicTargetType.Value &&
+                                !_reservedNodesCache.Contains(n.Id) &&
+                                !_robots.Any(r => r.CurrentNode == n.Id)).ToList();
+
+                            if (!string.IsNullOrEmpty(currentStage.TargetGroupName))
+                            {
+                                candidates = candidates.Where(n => n.ZoneName == currentStage.TargetGroupName).ToList();
+                            }
+
+                            if (candidates.Any())
+                            {
+                                LogicNode bestNode = null;
+                                double minDistance = double.MaxValue;
+
+                                foreach (var node in candidates)
+                                {
+                                    double dist = BasicRegionNavigation.Common.PathFinder.CalculateActualDistance(currentRobotNode, node, _mapNodes);
+                                    if (dist < minDistance)
+                                    {
+                                        minDistance = dist;
+                                        bestNode = node;
+                                    }
+                                }
+
+                                if (bestNode != null)
+                                {
+                                    currentStage.TargetNodeId = bestNode.Id;
+                                    _reservedNodesCache.Add(bestNode.Id);
+                                    reservedNodesThisOrder.Add(bestNode.Id);
+                                    Serilog.Log.Information($"[动态寻址] 为车 {robot.Id} 匹配最优目的地: 节点 {bestNode.Id} ({currentStage.DynamicTargetType})");
+                                    break;
+                                }
+                            }
+
+                            Serilog.Log.Warning($"[动态寻址] 小车 {robot.Id} 无可用动态目标 ({currentStage.DynamicTargetType})，等待 1 秒尝试...");
+                            await Task.Delay(1000);
+                        }
+                    }
+
                     var targetNode = _mapNodes.FirstOrDefault(n => n.Id == currentStage.TargetNodeId);
                     
                     if (targetNode == null) continue;
 
                     order.StageDescription = currentStage.StageName;
                     
+                    // 【新增：目的地预先上锁 (Destination Advance Locking)】
+                    if (_trafficController != null)
+                    {
+                        string zoneName = GetZoneName(targetNode);
+                        await _trafficController.WaitAndAcquireLockAsync(zoneName, robot.Id, priorityDistance);
+                    }
+
                     // 【核心逻辑：终点占用预检 & 联动避让】
                     // 确保在迈向阶段目标点前，清理终点占位车
                     while (true)
@@ -267,6 +326,13 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                         order.StageDescription = $"{currentStage.StageName} (等待 {currentStage.WaitTimeMs}ms)";
                         await Task.Delay(currentStage.WaitTimeMs);
                     }
+
+                    // 【新增：清理本阶段用完的动态锁节点，释放给别的车】
+                    if (reservedNodesThisOrder.Contains(currentStage.TargetNodeId))
+                    {
+                        _reservedNodesCache.Remove(currentStage.TargetNodeId);
+                        reservedNodesThisOrder.Remove(currentStage.TargetNodeId);
+                    }
                 }
 
                 // --- 全部阶段完成 ---
@@ -291,7 +357,24 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             }
             finally
             {
+                // 清理可能因为异常而残留在缓存的动态保留节点
+                foreach (var resNodeId in reservedNodesThisOrder)
+                {
+                    _reservedNodesCache.Remove(resNodeId);
+                }
+
+                // 1. 先解除小车的占用状态
                 _dispatchedRobotsCache.Remove(robot.Id);
+
+                // 2. 【新增】任务彻底结束后，立刻检查电量。如果已经是低电量，主动触发回充！
+                if (robot.BatteryLevel <= 20)
+                {
+                    Serilog.Log.Information($"[任务结束检查] 小车 {robot.Id} 刚完成任务，当前电量极低 ({robot.BatteryLevel:F1}%)，立即转入回充流程。");
+                    // 由于已经移除了占用，且小车处于 IDLE 状态，调用此方法将成功派发充电任务
+                    OnRobotBatteryLow(robot);
+                }
+
+                // 3. 尝试调度其他任务（不用担心低电量车会接单，因为 TryDispatch 过滤了电量 > 20）
                 TryDispatch();
             }
         }
