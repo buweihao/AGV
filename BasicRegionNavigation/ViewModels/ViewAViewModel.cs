@@ -292,7 +292,13 @@ namespace BasicRegionNavigation.ViewModels
                 if (File.Exists(configPath))
                 {
                     string json = File.ReadAllText(configPath);
-                    var config = JsonSerializer.Deserialize<AgvSystemConfig>(json);
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true, // 忽略属性大小写
+                        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } // 允许将 JSON 字符串("Normal")转为 Enum
+                    };
+
+                    var config = JsonSerializer.Deserialize<AgvSystemConfig>(json, options);
 
                     if (config != null)
                     {
