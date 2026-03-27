@@ -77,6 +77,15 @@
                 <Button Content="[连续模拟] 开启/关闭工厂自动接单" ToolTip="循环下发随机生产任务，模拟工厂真实运行节拍" Command="{Binding ToggleContinuousSimulationCommand}" Height="30" Padding="15,0" FontSize="14" Background="#E8F5E9" BorderBrush="#81C784"/>
             </StackPanel>
 
+            <!-- 动态添加/删除车辆 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,5">
+                <TextBlock Text="车辆动态管理:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,15,0" Foreground="#333"/>
+                <TextBlock Text="节点ID:" VerticalAlignment="Center" FontSize="14" Margin="0,0,5,0"/>
+                <TextBox Text="{Binding NewRobotNodeId}" Width="50" Height="25" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                <Button Content="➕ 放置车辆" Command="{Binding AddRobotCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E8F5E9" BorderBrush="#81C784"/>
+                <Button Content="🗑️ 清除所有车辆" Command="{Binding ClearRobotsCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#FFEBEE" BorderBrush="#E57373"/>
+            </StackPanel>
+
             <!-- 自定义配置任务流 (Sprint 2.1) -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5,0,15">
                 <TextBlock Text="任务模版派单:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,15,0" Foreground="#0277BD"/>
@@ -173,26 +182,26 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <!-- 代表 AGV-1 的图形 -->
-            <Border Width="30" Height="30" Background="Blue" CornerRadius="4" 
-                    Canvas.Left="{Binding Robot1X}" Canvas.Top="{Binding Robot1Y}"
-                    Margin="-15,-15,0,0">
-                <TextBlock Text="AGV1" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontWeight="Bold" FontSize="11"/>
-            </Border>
-
-            <!-- 代表 AGV-2 的图形 -->
-            <Border Width="30" Height="30" Background="Red" CornerRadius="4" 
-                    Canvas.Left="{Binding Robot2X}" Canvas.Top="{Binding Robot2Y}"
-                    Margin="-15,-15,0,0">
-                <TextBlock Text="AGV2" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontWeight="Bold" FontSize="11"/>
-            </Border>
-
-            <!-- 代表 AGV-3 的图形 -->
-            <Border Width="30" Height="30" Background="Green" CornerRadius="4" 
-                    Canvas.Left="{Binding Robot3X}" Canvas.Top="{Binding Robot3Y}"
-                    Margin="-15,-15,0,0">
-                <TextBlock Text="AGV3" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontWeight="Bold" FontSize="11"/>
-            </Border>
+            <ItemsControl ItemsSource="{Binding RobotList}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="Canvas.Left" Value="{Binding CurrentX}"/>
+                        <Setter Property="Canvas.Top" Value="{Binding CurrentY}"/>
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Width="30" Height="30" Background="#1976D2" CornerRadius="4" Margin="-15,-15,0,0">
+                            <TextBlock Text="{Binding Id}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontWeight="Bold" FontSize="11"/>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </Canvas>
 
         <!-- 右侧任务列表栏 -->

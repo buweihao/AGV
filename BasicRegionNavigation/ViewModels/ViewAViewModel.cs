@@ -84,6 +84,9 @@ namespace BasicRegionNavigation.ViewModels
         private Visibility _robotErrorVisibility = Visibility.Collapsed;
 
         [ObservableProperty]
+        private string _newRobotNodeId = "1";
+
+        [ObservableProperty]
         private ObservableCollection<LogicNode> _mapNodes;
 
         [ObservableProperty]
@@ -1158,6 +1161,71 @@ namespace BasicRegionNavigation.ViewModels
             _taskDispatcher.SubmitTask(order);
 
             Serilog.Log.Information($"[配置派单] 已根据模板 {SelectedTaskTemplate.TemplateName} 下发任务 {order.OrderId}");
+        }
+
+        [RelayCommand]
+        private void ClearRobots()
+        {
+            foreach (var r in _robots)
+            {
+                var mr = r as BasicRegionNavigation.Infrastructure.Robots.MockRobot;
+                mr?.Cancel();
+            }
+
+            var trafficCtrl = _taskDispatcher?.GetType().GetField("_trafficController", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(_taskDispatcher) as BasicRegionNavigation.Core.Interfaces.ITrafficController;
+            trafficCtrl?.ClearAllLocks();
+
+            _robots.Clear();
+            RobotList.Clear();
+            ActiveTasks.Clear();
+
+            _taskDispatcher?.UnsubscribeFromRobots();
+        }
+
+        [RelayCommand]
+        private void AddRobot()
+        {
+            if (!int.TryParse(NewRobotNodeId, out int nodeId)) return;
+            var node = MapNodes.FirstOrDefault(n => n.Id == nodeId);
+            if (node == null)
+            {
+                RobotErrorText = $"找不到节点 {nodeId}";
+                RobotErrorVisibility = Visibility.Visible;
+                return;
+            }
+
+            var trafficCtrl = _taskDispatcher?.GetType().GetField("_trafficController", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(_taskDispatcher) as BasicRegionNavigation.Core.Interfaces.ITrafficController ?? new BasicRegionNavigation.Applications.Controllers.TrafficController();
+
+            string newId = $"AGV-{Guid.NewGuid().ToString().Substring(0, 4).ToUpper()}";
+
+            var robot = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
+                id: newId,
+                trafficController: trafficCtrl,
+                logger: _loggerService,
+                mapNodes: MapNodes,
+                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"{newId}: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
+            );
+
+            robot.CurrentNode = node.Id;
+            robot.CurrentX = node.X;
+            robot.CurrentY = node.Y;
+
+            _robots.Add(robot);
+            RobotList.Add(robot);
+
+            trafficCtrl.ForceAcquireLock(Global.GetZoneName(node), newId);
+
+            _taskDispatcher?.UnsubscribeFromRobots();
+            
+            _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService, trafficCtrl);
+            _taskDispatcher.OnTaskCompleted += (order) =>
+            {
+                Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await Task.Delay(1000);
+                    ActiveTasks.Remove(order);
+                });
+            };
         }
     }
 
