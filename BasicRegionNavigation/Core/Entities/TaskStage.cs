@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace BasicRegionNavigation.Core.Entities
@@ -27,11 +29,12 @@ namespace BasicRegionNavigation.Core.Entities
         /// <summary>
         /// 动态目标类型 (可选)，若配置则 TargetNodeId 作为动态寻址的接收变量
         /// </summary>
+        [property: JsonConverter(typeof(JsonStringEnumConverter))]
         [ObservableProperty] private BasicRegionNavigation.Common.NodeType? _dynamicTargetType;
 
         /// <summary>
         /// 目标组名 (可选)，配合 DynamicTargetType 进一步筛选路由组
         /// </summary>
-        [ObservableProperty] private string _targetGroupName;
+        [ObservableProperty] private List<string> _candidateZones = new List<string>();
     }
 }

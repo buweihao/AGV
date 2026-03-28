@@ -233,9 +233,10 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                                 !_reservedNodesCache.Contains(n.Id) &&
                                 !_robots.Any(r => r.CurrentNode == n.Id)).ToList();
 
-                            if (!string.IsNullOrEmpty(currentStage.TargetGroupName))
+                            // 【修改】如果任务模板中配置了候选区域列表，则只在这些区域中寻找目标点
+                            if (currentStage.CandidateZones != null && currentStage.CandidateZones.Count > 0)
                             {
-                                candidates = candidates.Where(n => n.ZoneName == currentStage.TargetGroupName).ToList();
+                                candidates = candidates.Where(n => currentStage.CandidateZones.Contains(n.ZoneName)).ToList();
                             }
 
                             if (candidates.Any())
@@ -270,7 +271,10 @@ namespace BasicRegionNavigation.Applications.Dispatchers
 
                     var targetNode = _mapNodes.FirstOrDefault(n => n.Id == currentStage.TargetNodeId);
                     
-                    if (targetNode == null) continue;
+                    if (targetNode == null) 
+                    {
+                        throw new Exception($"调度异常：阶段 [{currentStage.StageName}] 找不到有效的目标节点，请检查动态寻址配置。");
+                    }
 
                     order.StageDescription = currentStage.StageName;
                     

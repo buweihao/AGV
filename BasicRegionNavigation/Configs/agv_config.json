@@ -790,7 +790,7 @@
           "ActionCode": "None",
           "WaitTimeMs": 5000,
           "StageName": "前往最近的上料点",
-          "DynamicTargetType": "Unload",
+          "DynamicTargetType": "Wash",
           "TargetGroupName": "Line_A"
         }
       ]
