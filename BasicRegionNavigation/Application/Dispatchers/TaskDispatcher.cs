@@ -223,13 +223,13 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     var currentStage = order.Stages.Dequeue();
 
                     // 【新增：动态寻址处理】
-                    if (currentStage.TargetNodeId == 0 && currentStage.DynamicTargetType.HasValue)
+                    if (currentStage.TargetNodeId == 0 && !string.IsNullOrEmpty(currentStage.DynamicTargetType))
                     {
                         while (true)
                         {
                             var currentRobotNode = _mapNodes.FirstOrDefault(n => n.Id == robot.CurrentNode);
                             var candidates = _mapNodes.Where(n =>
-                                n.NodeType == currentStage.DynamicTargetType.Value &&
+                                n.NodeType.ToString() == currentStage.DynamicTargetType &&
                                 !_reservedNodesCache.Contains(n.Id) &&
                                 !_robots.Any(r => r.CurrentNode == n.Id)).ToList();
 

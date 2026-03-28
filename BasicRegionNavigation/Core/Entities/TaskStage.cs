@@ -1,7 +1,4 @@
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace BasicRegionNavigation.Core.Entities
@@ -29,11 +26,9 @@ namespace BasicRegionNavigation.Core.Entities
         [ObservableProperty] private string _actionCode;
 
         /// <summary>
-        /// 动态目标类型 (可选)，若配置则 TargetNodeId 作为动态寻址的接收变量
+        /// 动态目标类型 (可选)，值为 NodeType 枚举名称字符串 (如 "Wash", "Unload")，若配置则 TargetNodeId 作为动态寻址的接收变量
         /// </summary>
-        [property: System.Text.Json.Serialization.JsonConverter(typeof(JsonStringEnumConverter))]
-        [property: Newtonsoft.Json.JsonConverter(typeof(StringEnumConverter))]
-        [ObservableProperty] private BasicRegionNavigation.Common.NodeType? _dynamicTargetType;
+        [ObservableProperty] private string _dynamicTargetType;
 
         /// <summary>
         /// 候选节点 ID 列表：由任务模板直接决定哪些具体的点参与动态分配
