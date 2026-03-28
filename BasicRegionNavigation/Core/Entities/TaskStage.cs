@@ -29,11 +29,11 @@ namespace BasicRegionNavigation.Core.Entities
         /// 动态目标类型 (可选)，直接存储 NodeType 枚举名称字符串 (如 "Wash", "Unload")。
         /// 使用 string 彻底规避枚举反序列化失败问题，在调度器中使用忽略大小写的字符串比较。
         /// </summary>
-        [ObservableProperty] private string _dynamicTargetType;
+        public string DynamicTargetType { get; set; }
 
         /// <summary>
         /// 候选节点 ID 列表：由任务模板直接决定哪些具体的点参与动态分配
         /// </summary>
-        [ObservableProperty] private List<int> _candidateNodeIds = new List<int>();
+        public List<int> CandidateNodeIds { get; set; } = new List<int>();
     }
 }
