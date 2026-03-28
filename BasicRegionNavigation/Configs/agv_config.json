@@ -789,9 +789,9 @@
           "TargetNodeId": 0,
           "ActionCode": "None",
           "WaitTimeMs": 5000,
-          "StageName": "前往最近的上料点",
+          "StageName": "前往最近的清洗点",
           "DynamicTargetType": "Wash",
-          "TargetGroupName": "Line_A"
+          "CandidateNodeIds": [ 57, 58 ] 
         }
       ]
     }

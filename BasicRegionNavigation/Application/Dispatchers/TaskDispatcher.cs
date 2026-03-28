@@ -233,10 +233,10 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                                 !_reservedNodesCache.Contains(n.Id) &&
                                 !_robots.Any(r => r.CurrentNode == n.Id)).ToList();
 
-                            // 【修改】如果任务模板中配置了候选区域列表，则只在这些区域中寻找目标点
-                            if (currentStage.CandidateZones != null && currentStage.CandidateZones.Count > 0)
+                            // 【修改】由任务模板直接指定候选点位：如果模板中配置了具体的节点 ID 列表，则只在这几个点中计算最近距离
+                            if (currentStage.CandidateNodeIds != null && currentStage.CandidateNodeIds.Count > 0)
                             {
-                                candidates = candidates.Where(n => currentStage.CandidateZones.Contains(n.ZoneName)).ToList();
+                                candidates = candidates.Where(n => currentStage.CandidateNodeIds.Contains(n.Id)).ToList();
                             }
 
                             if (candidates.Any())

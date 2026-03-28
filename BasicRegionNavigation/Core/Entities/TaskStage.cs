@@ -33,8 +33,8 @@ namespace BasicRegionNavigation.Core.Entities
         [ObservableProperty] private BasicRegionNavigation.Common.NodeType? _dynamicTargetType;
 
         /// <summary>
-        /// 目标组名 (可选)，配合 DynamicTargetType 进一步筛选路由组
+        /// 候选节点 ID 列表：由任务模板直接决定哪些具体的点参与动态分配
         /// </summary>
-        [ObservableProperty] private List<string> _candidateZones = new List<string>();
+        [ObservableProperty] private List<int> _candidateNodeIds = new List<int>();
     }
 }
