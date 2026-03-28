@@ -223,6 +223,10 @@ namespace BasicRegionNavigation.Infrastructure.Robots
                 CurrentTaskDesc = "-";
                 Serilog.Log.Debug($"MockRobot {Id}: 任务已完成。");
             }
+            else if (_cancelFlag)
+            {
+                throw new TaskCanceledException($"MockRobot {Id} move task was canceled.");
+            }
         }
 
         public void Pause()

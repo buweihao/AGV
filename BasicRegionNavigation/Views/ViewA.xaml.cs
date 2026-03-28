@@ -80,22 +80,6 @@ namespace BasicRegionNavigation.Views
             }
         }
 
-        private void EditText_Click(object sender, RoutedEventArgs e)
-        {
-        }
-        private void ClockRadioButton_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            //右键执行一个vm中的命令
-            var vm = (ViewAViewModel)this.DataContext;
-            if (sender is ClockRadioButton radioBtn)
-            {
-                var parameter = radioBtn.CommandParameter;
-                vm.ShowTextCommand.Execute(parameter);
-
-            }
-
-
-        }
 
     }
 

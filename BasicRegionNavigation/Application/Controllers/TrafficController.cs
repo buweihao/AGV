@@ -46,6 +46,11 @@ namespace BasicRegionNavigation.Applications.Controllers
                 {
                     lock (_lockObj)
                     {
+                        if (!_waitingQueues.ContainsKey(zoneName) || !_waitingQueues[zoneName].Exists(x => x.RobotId == robotId))
+                        {
+                            throw new TaskCanceledException($"Lock acquisition canceled for {robotId} on {zoneName}");
+                        }
+
                         // 优先级排序：值越小，排越前面
                         _waitingQueues[zoneName].Sort((a, b) => a.Priority.CompareTo(b.Priority));
                         
@@ -108,6 +113,7 @@ namespace BasicRegionNavigation.Applications.Controllers
             lock (_lockObj)
             {
                 _lockedZones.Clear();
+                _waitingQueues.Clear(); // 清理等待队列，触发现有 WaitAndAcquireLockAsync 抛出取消异常
             }
         }
 

@@ -97,7 +97,20 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     };
                     chargeOrder.Stages.Enqueue(new TaskStage { TargetNodeId = chargingNode.Id, WaitTimeMs = 0, StageName = "前往快速补电" });
 
-                    Serilog.Log.Information($"[自动回充] 侦测到小车 {robot.Id} 电量低 ({robot.BatteryLevel:F1}%)，自动下发任务至充电桩 {chargingNode.Id}");
+                    var bufferNode = _mapNodes
+                        .Where(n => n.IsBufferNode)
+                        .OrderBy(n => Math.Sqrt(Math.Pow(n.X - chargingNode.X, 2) + Math.Pow(n.Y - chargingNode.Y, 2)))
+                        .FirstOrDefault();
+
+                    if (bufferNode != null)
+                    {
+                        chargeOrder.Stages.Enqueue(new TaskStage { TargetNodeId = bufferNode.Id, WaitTimeMs = 0, StageName = "进入缓冲待命区" });
+                        Serilog.Log.Information($"[自动回充] 侦测到小车 {robot.Id} 电量低 ({robot.BatteryLevel:F1}%)，下发回充任务 (充电桩 {chargingNode.Id} -> 待命区 {bufferNode.Id})");
+                    }
+                    else
+                    {
+                        Serilog.Log.Information($"[自动回充] 侦测到小车 {robot.Id} 电量低 ({robot.BatteryLevel:F1}%)，下发回充任务至充电桩 {chargingNode.Id}");
+                    }
                     
                     _dispatchedRobotsCache.Add(robot.Id);
                     chargeOrder.AssignedRobotId = robot.Id;
@@ -222,120 +235,41 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 {
                     var currentStage = order.Stages.Dequeue();
 
-                    // 【新增：动态寻址处理】
-                    if (currentStage.TargetNodeId == 0 && !string.IsNullOrEmpty(currentStage.DynamicTargetType))
-                    {
-                        while (true)
-                        {
-                            var currentRobotNode = _mapNodes.FirstOrDefault(n => n.Id == robot.CurrentNode);
-                            var candidates = _mapNodes.Where(n =>
-                                n.NodeType.ToString() == currentStage.DynamicTargetType &&
-                                !_reservedNodesCache.Contains(n.Id) &&
-                                !_robots.Any(r => r.CurrentNode == n.Id)).ToList();
-
-                            // 【修改】由任务模板直接指定候选点位：如果模板中配置了具体的节点 ID 列表，则只在这几个点中计算最近距离
-                            if (currentStage.CandidateNodeIds != null && currentStage.CandidateNodeIds.Count > 0)
-                            {
-                                candidates = candidates.Where(n => currentStage.CandidateNodeIds.Contains(n.Id)).ToList();
-                            }
-
-                            if (candidates.Any())
-                            {
-                                LogicNode bestNode = null;
-                                double minDistance = double.MaxValue;
-
-                                foreach (var node in candidates)
-                                {
-                                    double dist = BasicRegionNavigation.Common.PathFinder.CalculateActualDistance(currentRobotNode, node, _mapNodes);
-                                    if (dist < minDistance)
-                                    {
-                                        minDistance = dist;
-                                        bestNode = node;
-                                    }
-                                }
-
-                                if (bestNode != null)
-                                {
-                                    currentStage.TargetNodeId = bestNode.Id;
-                                    _reservedNodesCache.Add(bestNode.Id);
-                                    reservedNodesThisOrder.Add(bestNode.Id);
-                                    Serilog.Log.Information($"[动态寻址] 为车 {robot.Id} 匹配最优目的地: 节点 {bestNode.Id} ({currentStage.DynamicTargetType})");
-                                    break;
-                                }
-                            }
-
-                            Serilog.Log.Warning($"[动态寻址] 小车 {robot.Id} 无可用动态目标 ({currentStage.DynamicTargetType})，等待 1 秒尝试...");
-                            await Task.Delay(1000);
-                        }
-                    }
-
-                    var targetNode = _mapNodes.FirstOrDefault(n => n.Id == currentStage.TargetNodeId);
+                    // 步骤 A：解析目标节点 (动态寻址与静态预检)
+                    var targetNode = await ResolveTargetNodeAsync(robot, currentStage, reservedNodesThisOrder);
                     
-                    if (targetNode == null) 
-                    {
-                        throw new Exception($"调度异常：阶段 [{currentStage.StageName}] 找不到有效的目标节点，请检查动态寻址配置。");
-                    }
-
                     order.StageDescription = currentStage.StageName;
                     
-                    // 【新增：目的地预先上锁 (Destination Advance Locking)】
+                    // 步骤 B：申请交通控制锁 (自带超时机制)
                     if (_trafficController != null)
                     {
-                        string zoneName = GetZoneName(targetNode);
-                        await _trafficController.WaitAndAcquireLockAsync(zoneName, robot.Id, priorityDistance);
+                        await _trafficController.WaitAndAcquireLockAsync(targetNode.Id.ToString(), robot.Id, priorityDistance);
                     }
 
-                    // 【核心逻辑：终点占用预检 & 联动避让】
-                    // 确保在迈向阶段目标点前，清理终点占位车
-                    while (true)
+                    try 
                     {
-                        var occupantRobot = _robots.FirstOrDefault(r => r.Id != robot.Id && r.CurrentNode == targetNode.Id);
-                        if (occupantRobot == null) break;
+                        // 步骤 C：物理占用清理 (驱赶停在目标点的空闲车辆)
+                        await CheckAndClearPhysicalOccupancyAsync(robot, targetNode);
 
-                        if (occupantRobot.State == RobotState.IDLE)
+                        // 物理移动
+                        await robot.GoToNodeAsync(targetNode);
+
+                        // 执行业务动作
+                        if (!string.IsNullOrEmpty(currentStage.ActionCode) && currentStage.ActionCode != "None")
                         {
-                            var bufferCandidates = _mapNodes
-                                .Where(n => (targetNode.ConnectedNodeIds.Contains(n.Id) || n.ConnectedNodeIds.Contains(targetNode.Id))
-                                            && !_robots.Any(r => r.CurrentNode == n.Id))
-                                .ToList();
-
-                            var bufferNode = bufferCandidates.FirstOrDefault(n => n.IsBufferNode) ?? bufferCandidates.FirstOrDefault();
-
-                            if (bufferNode != null)
-                            {
-                                await occupantRobot.GoToNodeAsync(bufferNode);
-                            }
-                            else
-                            {
-                                await Task.Delay(1000); 
-                            }
+                            order.StageDescription = $"{currentStage.StageName} (执行: {currentStage.ActionCode})";
+                            await ExecuteStageActionAsync(currentStage);
                         }
-                        else
+                        else if (currentStage.WaitTimeMs > 0)
                         {
-                            await Task.Delay(1000); 
+                            order.StageDescription = $"{currentStage.StageName} (等待 {currentStage.WaitTimeMs}ms)";
+                            await Task.Delay(currentStage.WaitTimeMs);
                         }
                     }
-
-                    // 执行移动
-                    await robot.GoToNodeAsync(targetNode);
-
-                    // 到达后的动作处理器
-                    if (!string.IsNullOrEmpty(currentStage.ActionCode) && currentStage.ActionCode != "None")
+                    finally
                     {
-                        order.StageDescription = $"{currentStage.StageName} (执行: {currentStage.ActionCode})";
-                        await ExecuteStageActionAsync(currentStage);
-                    }
-                    else if (currentStage.WaitTimeMs > 0)
-                    {
-                        order.StageDescription = $"{currentStage.StageName} (等待 {currentStage.WaitTimeMs}ms)";
-                        await Task.Delay(currentStage.WaitTimeMs);
-                    }
-
-                    // 【新增：清理本阶段用完的动态锁节点，释放给别的车】
-                    if (reservedNodesThisOrder.Contains(currentStage.TargetNodeId))
-                    {
-                        _reservedNodesCache.Remove(currentStage.TargetNodeId);
-                        reservedNodesThisOrder.Remove(currentStage.TargetNodeId);
+                        // 步骤 D：释放节点和交通锁
+                        ReleaseStageLocks(targetNode.Id, robot.Id, reservedNodesThisOrder);
                     }
                 }
 
@@ -361,12 +295,6 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             }
             finally
             {
-                // 清理可能因为异常而残留在缓存的动态保留节点
-                foreach (var resNodeId in reservedNodesThisOrder)
-                {
-                    _reservedNodesCache.Remove(resNodeId);
-                }
-
                 // 1. 先解除小车的占用状态
                 _dispatchedRobotsCache.Remove(robot.Id);
 
@@ -380,6 +308,110 @@ namespace BasicRegionNavigation.Applications.Dispatchers
 
                 // 3. 尝试调度其他任务（不用担心低电量车会接单，因为 TryDispatch 过滤了电量 > 20）
                 TryDispatch();
+            }
+        }
+
+        private async Task<LogicNode> ResolveTargetNodeAsync(IRobot robot, TaskStage stage, List<int> reservedNodesThisOrder)
+        {
+            if (stage.TargetNodeId == 0 && !string.IsNullOrEmpty(stage.DynamicTargetType))
+            {
+                while (true)
+                {
+                    var currentRobotNode = _mapNodes.FirstOrDefault(n => n.Id == robot.CurrentNode);
+                    var candidates = _mapNodes.Where(n =>
+                        n.NodeType.ToString() == stage.DynamicTargetType &&
+                        !_reservedNodesCache.Contains(n.Id) &&
+                        !_robots.Any(r => r.CurrentNode == n.Id)).ToList();
+
+                    if (stage.CandidateNodeIds != null && stage.CandidateNodeIds.Count > 0)
+                    {
+                        candidates = candidates.Where(n => stage.CandidateNodeIds.Contains(n.Id)).ToList();
+                    }
+
+                    if (candidates.Any())
+                    {
+                        LogicNode bestNode = null;
+                        double minDistance = double.MaxValue;
+
+                        foreach (var node in candidates)
+                        {
+                            double dist = BasicRegionNavigation.Common.PathFinder.CalculateActualDistance(currentRobotNode, node, _mapNodes);
+                            if (dist < minDistance)
+                            {
+                                minDistance = dist;
+                                bestNode = node;
+                            }
+                        }
+
+                        if (bestNode != null)
+                        {
+                            stage.TargetNodeId = bestNode.Id;
+                            _reservedNodesCache.Add(bestNode.Id);
+                            reservedNodesThisOrder.Add(bestNode.Id);
+                            Serilog.Log.Information($"[动态寻址] 为车 {robot.Id} 匹配最优目的地: 节点 {bestNode.Id} ({stage.DynamicTargetType})");
+                            break;
+                        }
+                    }
+
+                    Serilog.Log.Warning($"[动态寻址] 小车 {robot.Id} 无可用动态目标 ({stage.DynamicTargetType})，等待 1 秒尝试...");
+                    await Task.Delay(1000);
+                }
+            }
+
+            var targetNode = _mapNodes.FirstOrDefault(n => n.Id == stage.TargetNodeId);
+            
+            if (targetNode == null) 
+            {
+                throw new Exception($"调度异常：阶段 [{stage.StageName}] 找不到有效的目标节点，请检查动态寻址配置。");
+            }
+            
+            return targetNode;
+        }
+
+        private async Task CheckAndClearPhysicalOccupancyAsync(IRobot currentRobot, LogicNode targetNode)
+        {
+            // 确保在迈向阶段目标点前，清理终点占位车
+            while (true)
+            {
+                var occupantRobot = _robots.FirstOrDefault(r => r.Id != currentRobot.Id && r.CurrentNode == targetNode.Id);
+                if (occupantRobot == null) break;
+
+                if (occupantRobot.State == RobotState.IDLE)
+                {
+                    var bufferCandidates = _mapNodes
+                        .Where(n => (targetNode.ConnectedNodeIds.Contains(n.Id) || n.ConnectedNodeIds.Contains(targetNode.Id))
+                                    && !_robots.Any(r => r.CurrentNode == n.Id))
+                        .ToList();
+
+                    var bufferNode = bufferCandidates.FirstOrDefault(n => n.IsBufferNode) ?? bufferCandidates.FirstOrDefault();
+
+                    if (bufferNode != null)
+                    {
+                        await occupantRobot.GoToNodeAsync(bufferNode);
+                    }
+                    else
+                    {
+                        await Task.Delay(1000); 
+                    }
+                }
+                else
+                {
+                    await Task.Delay(1000); 
+                }
+            }
+        }
+
+        private void ReleaseStageLocks(int targetNodeId, string robotId, List<int> reservedNodesThisOrder)
+        {
+            if (reservedNodesThisOrder.Contains(targetNodeId))
+            {
+                _reservedNodesCache.Remove(targetNodeId);
+                reservedNodesThisOrder.Remove(targetNodeId);
+            }
+
+            if (_trafficController != null)
+            {
+                _trafficController.ReleaseLock(targetNodeId.ToString(), robotId);
             }
         }
 
@@ -414,6 +446,7 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 Console.WriteLine($"[TaskDispatcher] 数据库更新失败: {ex.Message}");
             }
         }
+
         /// <summary>
         /// 模拟执行具体的业务动作（如 PLC 握手、装卸料）
         /// </summary>

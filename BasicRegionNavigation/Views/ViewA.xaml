@@ -47,35 +47,7 @@
         </Grid.ColumnDefinitions>
         
         <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Vertical" Margin="10" HorizontalAlignment="Center">
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10" HorizontalAlignment="Center">
-                <TextBlock Text="随机调度:" VerticalAlignment="Center" FontSize="16" Margin="0,0,10,0"/>
-                <Button Content="发车订单" Command="{Binding DispatchCustomSequenceTaskCommand}" Width="100" Height="30" FontSize="16" Margin="0,0,20,0"/>
-                <TextBlock Text="{Binding RobotPositionText}" VerticalAlignment="Center" FontSize="16" Foreground="Blue"/>
-            </StackPanel>
-            
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="暂停" Command="{Binding PauseRobotCommand}" Width="80" Height="30" FontSize="16" Margin="0,0,10,0"/>
-                <Button Content="继续" Command="{Binding ResumeRobotCommand}" Width="80" Height="30" FontSize="16" Margin="0,0,10,0"/>
-                <Button Content="取消" Command="{Binding CancelRobotCommand}" Width="80" Height="30" FontSize="16" Margin="0,0,20,0"/>
-            </StackPanel>
 
-            <!-- 新增的 Zone 管制测试控制组 -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,5">
-                <TextBlock Text="死锁预防测试:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,15,0" Foreground="#333"/>
-                <Button Content="[0] 管制区排队测试" ToolTip="核心测试：R2 从 Zone_A 出去的同时，R1 在入口处排队等待" Command="{Binding RunTestOne_ZoneQueueingCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#FFF9C4" BorderBrush="#FBC02D"/>
-                <Button Content="[1] 测试旁路管制" ToolTip="模拟 AGV-1 与 AGV-2 在 Zone_A 管制区边缘的寻路与区域锁释放逻辑" Command="{Binding TestCorridorCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E1F5FE" BorderBrush="#42A5F5"/>
-                <Button Content="[2] 测试路口拦截" ToolTip="模拟南北(1->2)与东西(4->3)并发任务，验证中心节点(0)的交通拦截" Command="{Binding TestIntersectionCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#E8F5E9" BorderBrush="#66BB6A"/>
-                <Button Content="[3] 测试中心死锁" ToolTip="强制两车同时抢占中心 Node 0，测试死锁规避或锁竞争逻辑" Command="{Binding TestDeadlockCommand}" Height="30" Padding="15,0" FontSize="14" Background="#FFEBEE" BorderBrush="#EF5350" Foreground="#D32F2F"/>
-                <Button Content="[4] 就近分配测试" ToolTip="核心测试：3台车不同距离，验证调度引擎是否精确挑选最近的R3" Command="{Binding RunTestTwo_NearestAllocationCommand}" Height="30" Padding="15,0" FontSize="14" Margin="10,0,0,0" Background="#E0F7FA" BorderBrush="#00ACC1"/>
-            </StackPanel>
-            
-            <!-- 生产节拍模拟 (冲刺2) 控制组 -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,10">
-                <TextBlock Text="生产进度模拟 (Sprint 2):" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,15,0" Foreground="#6A1B9A"/>
-                <Button Content="[初始化] 3台车待命" ToolTip="重置沙盘并放置 3 台 AGV 处于三向待命区" Command="{Binding InitThreeRobotsCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#F3E5F5" BorderBrush="#CE93D8"/>
-                <Button Content="[单次呼叫] 1号机床需要上料" ToolTip="模拟一号机床发起临时上料请求：原料区->1号机床->停车区" Command="{Binding CallMachineOneMaterialCommand}" Height="30" Padding="15,0" FontSize="14" Margin="0,0,10,0" Background="#FFF3E0" BorderBrush="#FFB74D"/>
-                <Button Content="[连续模拟] 开启/关闭工厂自动接单" ToolTip="循环下发随机生产任务，模拟工厂真实运行节拍" Command="{Binding ToggleContinuousSimulationCommand}" Height="30" Padding="15,0" FontSize="14" Background="#E8F5E9" BorderBrush="#81C784"/>
-            </StackPanel>
 
             <!-- 动态添加/删除车辆 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,5">
@@ -98,6 +70,37 @@
                         Command="{Binding DispatchSelectedTemplateCommand}" 
                         Height="32" Padding="20,0" FontSize="14" FontWeight="Bold" Margin="15,0,0,0" 
                         Background="#E3F2FD" BorderBrush="#0277BD" BorderThickness="2" Foreground="#01579B"/>
+
+                <!-- [新增] 自动化任务生成器 -->
+                <TextBlock Text="⚡ 自动化生成:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="35,0,10,0" Foreground="#2E7D32"/>
+                <hc:ComboBox SelectedValuePath="Tag" 
+                             SelectedValue="{Binding AutoTaskInterval}"
+                             Width="110" Height="32" VerticalContentAlignment="Center" FontSize="14" BorderBrush="#2E7D32">
+                    <ComboBoxItem Content="快速 (5s)" Tag="5000"/>
+                    <ComboBoxItem Content="中速 (15s)" Tag="15000" IsSelected="True"/>
+                    <ComboBoxItem Content="慢速 (30s)" Tag="30000"/>
+                </hc:ComboBox>
+
+                <Button Command="{Binding ToggleAutoTaskGeneratorCommand}" 
+                        Height="32" Padding="20,0" Margin="15,0,0,0" FontSize="14" FontWeight="Bold">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Setter Property="Content" Value="▶ 开启任务生成"/>
+                            <Setter Property="Background" Value="#E8F5E9"/>
+                            <Setter Property="Foreground" Value="#2E7D32"/>
+                            <Setter Property="BorderBrush" Value="#2E7D32"/>
+                            <Setter Property="BorderThickness" Value="2"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsAutoTaskRunning}" Value="True">
+                                    <Setter Property="Content" Value="⏹ 停止生成器"/>
+                                    <Setter Property="Background" Value="#FFEBEE"/>
+                                    <Setter Property="Foreground" Value="#C62828"/>
+                                    <Setter Property="BorderBrush" Value="#EF5350"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
             </StackPanel>
         </StackPanel>
 
