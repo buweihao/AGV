@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace BasicRegionNavigation.Core.Entities
@@ -29,7 +31,8 @@ namespace BasicRegionNavigation.Core.Entities
         /// <summary>
         /// 动态目标类型 (可选)，若配置则 TargetNodeId 作为动态寻址的接收变量
         /// </summary>
-        [property: JsonConverter(typeof(JsonStringEnumConverter))]
+        [property: System.Text.Json.Serialization.JsonConverter(typeof(JsonStringEnumConverter))]
+        [property: Newtonsoft.Json.JsonConverter(typeof(StringEnumConverter))]
         [ObservableProperty] private BasicRegionNavigation.Common.NodeType? _dynamicTargetType;
 
         /// <summary>
