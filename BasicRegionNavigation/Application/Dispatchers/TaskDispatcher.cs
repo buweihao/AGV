@@ -42,6 +42,21 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 // 【新增】订阅低电量事件 (事件驱动架构)
                 robot.OnBatteryLow += OnRobotBatteryLow;
             }
+
+            // 【步骤二：启动现场恢复（盲采上锁）】
+            if (_trafficController != null)
+            {
+                foreach (var robot in _robots)
+                {
+                    var node = _mapNodes.FirstOrDefault(n => n.Id == robot.CurrentNode);
+                    if (node != null)
+                    {
+                        // 盲采上锁：不判断是否占用，直接强制锁定物理身下的领土
+                        string zoneName = GetZoneName(node);
+                        _trafficController.ForceAcquireLock(zoneName, robot.Id);
+                    }
+                }
+            }
         }
 
         private void HandleRobotStateChanged(RobotState state)
@@ -96,17 +111,6 @@ namespace BasicRegionNavigation.Applications.Dispatchers
         {
             _orderQueue.Enqueue(order);
             TryDispatch();
-        }
-
-        /// <summary>
-        /// 清空所有调度缓存：包含排队中的订单、已派发的小车记录、以及逻辑预占的节点
-        /// </summary>
-        public void ClearCaches()
-        {
-            _orderQueue.Clear();
-            _dispatchedRobotsCache.Clear();
-            _reservedNodesCache.Clear();
-            Serilog.Log.Information("[调度器] 系统缓存已清空（订单队列、派发记录、逻辑预占点）。");
         }
 
         /// <summary>
@@ -274,12 +278,11 @@ namespace BasicRegionNavigation.Applications.Dispatchers
 
                     order.StageDescription = currentStage.StageName;
                     
-                    // 【逻辑预占】仅在调度层面标记终点，防止其他动态寻址任务抢占此点。
-                    // 物理路权锁由 MockRobot 步进移动时实时申请（猴子荡秋千），不在此处提前占用。
-                    if (!_reservedNodesCache.Contains(targetNode.Id))
+                    // 【新增：目的地预先上锁 (Destination Advance Locking)】
+                    if (_trafficController != null)
                     {
-                        _reservedNodesCache.Add(targetNode.Id);
-                        reservedNodesThisOrder.Add(targetNode.Id);
+                        string zoneName = GetZoneName(targetNode);
+                        await _trafficController.WaitAndAcquireLockAsync(zoneName, robot.Id, priorityDistance);
                     }
 
                     // 【核心逻辑：终点占用预检 & 联动避让】

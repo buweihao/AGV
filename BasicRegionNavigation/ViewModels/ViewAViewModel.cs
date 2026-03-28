@@ -45,34 +45,133 @@ namespace BasicRegionNavigation.ViewModels
         private BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher _taskDispatcher;
         private ITrafficController _trafficController;
 
-        [ObservableProperty] private string _robotErrorText;
-        [ObservableProperty] private Visibility _robotErrorVisibility = Visibility.Collapsed;
-        [ObservableProperty] private string _newRobotNodeId = "1";
-        [ObservableProperty] private ObservableCollection<LogicNode> _mapNodes;
-        [ObservableProperty] private ObservableCollection<MapEdgeViewModel> _mapEdges = new ObservableCollection<MapEdgeViewModel>();
-        [ObservableProperty] private ObservableCollection<TaskOrder> _activeTasks = new ObservableCollection<TaskOrder>();
-        [ObservableProperty] private ObservableCollection<IRobot> _robotList;
-        [ObservableProperty] private ObservableCollection<LockInfo> _activeLocks = new ObservableCollection<LockInfo>();
-        
-        [ObservableProperty] private ObservableCollection<TaskTemplate> _taskTemplates;
-        [ObservableProperty] private TaskTemplate _selectedTaskTemplate;
+        [ObservableProperty]
+        private int _currentNode;
+
+        [ObservableProperty]
+        private LogicNode _targetNode;
+
+        [ObservableProperty]
+        private double _robot1X;
+
+        [ObservableProperty]
+        private double _robot1Y;
+
+        [ObservableProperty]
+        private string _robot1StateText = "状态: IDLE";
+
+        [ObservableProperty]
+        private double _robot2X;
+
+        [ObservableProperty]
+        private double _robot2Y;
+
+        [ObservableProperty]
+        private double _robot3X;
+
+        [ObservableProperty]
+        private double _robot3Y;
+
+        [ObservableProperty]
+        private string _robot3StateText = "状态: IDLE";
+
+        [ObservableProperty]
+        private string _robotPositionText = "坐标实时监控已简化";
+
+        [ObservableProperty]
+        private string _robotErrorText;
+
+        [ObservableProperty]
+        private Visibility _robotErrorVisibility = Visibility.Collapsed;
+
+        [ObservableProperty]
+        private string _newRobotNodeId = "1";
+
+        [ObservableProperty]
+        private ObservableCollection<LogicNode> _mapNodes;
+
+        [ObservableProperty]
+        private ObservableCollection<MapEdgeViewModel> _mapEdges = new ObservableCollection<MapEdgeViewModel>();
+
+        [ObservableProperty]
+        private ObservableCollection<TaskOrder> _activeTasks = new ObservableCollection<TaskOrder>();
+
+        [ObservableProperty]
+        private ObservableCollection<IRobot> _robotList;
+
+        [ObservableProperty]
+        private ObservableCollection<LockInfo> _activeLocks = new ObservableCollection<LockInfo>();
 
         private readonly IAlarmHistoryService _alarmHistoryService;
         private readonly IModbusService _modbusService;
+
+        [ObservableProperty] private bool _isContinuousSimulationRunning;
+        private CancellationTokenSource _simulationCts;
+        /// <summary>
+        /// 本页面专用，表示用户选中需要查看的模组
+        /// </summary>
+        [ObservableProperty]
+        private string _moduleNum = "0";
+
+        /// <summary>
+        /// 用于给前端绑定的各个控件的数据源，会跟随模组index变化而更新
+        /// </summary>
+        [ObservableProperty]
+        private ModuleModel _currentModule;
+
+        [ObservableProperty] private string _model1Name = "供料机A(-)";
+        [ObservableProperty] private string _model2Name = "供料机B(-)";
+
+
+        // 模组缓存
+        private readonly ConcurrentDictionary<string, ModuleModel> _modulesCache = new ConcurrentDictionary<string, ModuleModel>();
+
+        // 报警信息翻译字典 (Key: UI标识, Value: 中文描述)
+        private readonly Dictionary<string, string> _alarmDescriptions = new Dictionary<string, string>
+        {
+            // 供料机 A
+            { "FeederASensorFault",       "供料机A-传感器故障" },
+            { "FeederAComponentFault",    "供料机A-气缸/元件故障" },
+            { "FeederATraceCommFault",    "供料机A-轨道通讯故障" },
+            { "FeederAMasterCommFault",   "供料机A-主控通讯故障" },
+            
+            // 供料机 B
+            { "FeederBSensorFault",       "供料机B-传感器故障" },
+            { "FeederBComponentFault",    "供料机B-气缸/元件故障" },
+            { "FeederBTraceCommFault",    "供料机B-轨道通讯故障" },
+            { "FeederBMasterCommFault",   "供料机B-主控通讯故障" },
+            
+            // 翻转台
+            { "FlipperSensorFault",       "翻转台-传感器故障" },
+            { "FlipperComponentFault",    "翻转台-气缸/元件故障" },
+            { "FlipperTraceCommFault",    "翻转台-轨道通讯故障" },
+            { "FlipperHostCommFault",     "翻转台-上位机通讯故障" },
+            { "FlipperRobotCommFault",    "翻转台-机器人通讯故障" },
+            { "FlipperDoorTriggered",     "翻转台-安全门触发" },
+            { "FlipperSafetyCurtain",     "翻转台-光幕触发" },
+            { "FlipperEmergencyStop",     "翻转台-急停按下" },
+            { "FlipperScannerCommFault",  "翻转台-扫码枪通讯故障" }
+        };
+
+        [ObservableProperty] private ObservableCollection<TaskTemplate> _taskTemplates;
+        [ObservableProperty] private TaskTemplate _selectedTaskTemplate;
+
         private readonly IProductionService _productionService;
         private readonly ILoggerService _loggerService;
-        private readonly IDatabaseService _databaseService;
-
+        private readonly IDatabaseService _databaseService; // 【新增】注入数据库服务
         public ViewAViewModel(IModbusService modbusService, IProductionService productionService, IAlarmHistoryService alarmHistoryService, ILoggerService loggerService, IDatabaseService databaseService)
         {
             _loggerService = loggerService;
             _databaseService = databaseService;
             _modbusService = modbusService;
             _alarmHistoryService = alarmHistoryService;
-            _productionService = productionService;
+            _productionService = productionService; // 【新增】赋值
+
 
             // 1. 加载系统配置 (合并版 JSON)
             LoadSystemConfig();
+
+            TargetNode = MapNodes.FirstOrDefault();
 
             _trafficController = new BasicRegionNavigation.Applications.Controllers.TrafficController();
 
@@ -80,7 +179,7 @@ namespace BasicRegionNavigation.ViewModels
             var robot1 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-1",
                 trafficController: _trafficController,
-                logger: _loggerService, 
+                logger: _loggerService, // 【新增】传入日志服务
                 mapNodes: MapNodes,
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-1: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
             );
@@ -89,12 +188,13 @@ namespace BasicRegionNavigation.ViewModels
             robot1.CurrentNode = node4.Id;
             robot1.CurrentX = node4.X;
             robot1.CurrentY = node4.Y;
-            robot1.OnPositionChanged += (x, y) => { /* 仅作为事件触发 */ };
+            Robot1X = node4.X; Robot1Y = node4.Y;
+            robot1.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot1X = x; Robot1Y = y; }); };
 
             var robot2 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-2",
                 trafficController: _trafficController,
-                logger: _loggerService, 
+                logger: _loggerService, // 【新增】传入日志服务
                 mapNodes: MapNodes,
                 onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-2: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
             );
@@ -103,7 +203,8 @@ namespace BasicRegionNavigation.ViewModels
             robot2.CurrentNode = node3.Id;
             robot2.CurrentX = node3.X;
             robot2.CurrentY = node3.Y;
-            robot2.OnPositionChanged += (x, y) => { /* 仅作为事件触发 */ };
+            Robot2X = node3.X; Robot2Y = node3.Y;
+            robot2.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot2X = x; Robot2Y = y; }); };
 
             var robot3 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
                 id: "AGV-3",
@@ -117,7 +218,16 @@ namespace BasicRegionNavigation.ViewModels
             robot3.CurrentNode = node1.Id;
             robot3.CurrentX = node1.X;
             robot3.CurrentY = node1.Y;
-            robot3.OnPositionChanged += (x, y) => { /* 仅作为事件触发 */ };
+            Robot3X = node1.X; Robot3Y = node1.Y;
+            robot3.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot3X = x; Robot3Y = y; }); };
+
+            // 初始占位申请
+            //var startNode1 = MapNodes.First(n => n.Id == 4);
+            //var startNode2 = MapNodes.First(n => n.Id == 3);
+            //var startNode3 = MapNodes.First(n => n.Id == 1);
+            //_ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode1), "AGV-1");
+            //_ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode2), "AGV-2");
+            //_ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode3), "AGV-3");
 
             _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2, robot3 };
             RobotList = new ObservableCollection<IRobot>(_robots);
@@ -948,6 +1058,13 @@ namespace BasicRegionNavigation.ViewModels
             RobotErrorVisibility = Visibility.Collapsed;
         }
 
+        [RelayCommand]
+        private void ShowText(string param)
+        {
+            MyConfigCommand.configHelper = Global._config;
+            MyConfigCommand.ShowText(param);
+        }
+
         // 修改：增加 ModuleModel 参数
         public void UpdateXLabelsByTime(ModuleModel module)
         {
@@ -1095,11 +1212,7 @@ namespace BasicRegionNavigation.ViewModels
                     TargetNodeId = stage.TargetNodeId,
                     WaitTimeMs = stage.WaitTimeMs,
                     StageName = stage.StageName,
-                    ActionCode = stage.ActionCode,
-                    DynamicTargetType = stage.DynamicTargetType,
-                    CandidateNodeIds = stage.CandidateNodeIds != null
-                        ? new System.Collections.Generic.List<int>(stage.CandidateNodeIds)
-                        : new System.Collections.Generic.List<int>()
+                    ActionCode = stage.ActionCode
                 });
             }
 
@@ -1120,9 +1233,6 @@ namespace BasicRegionNavigation.ViewModels
 
             var trafficCtrl = _taskDispatcher?.GetType().GetField("_trafficController", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(_taskDispatcher) as BasicRegionNavigation.Core.Interfaces.ITrafficController;
             trafficCtrl?.ClearAllLocks();
-
-            // 【新增】同时清空调度器的逻辑预占及派发缓存
-            _taskDispatcher?.ClearCaches();
 
             _robots.Clear();
             RobotList.Clear();

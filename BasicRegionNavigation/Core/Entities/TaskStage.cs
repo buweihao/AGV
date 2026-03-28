@@ -28,11 +28,11 @@ namespace BasicRegionNavigation.Core.Entities
         /// <summary>
         /// 动态目标类型 (可选)，值为 NodeType 枚举名称字符串 (如 "Wash", "Unload")，若配置则 TargetNodeId 作为动态寻址的接收变量
         /// </summary>
-        public string DynamicTargetType { get; set; }
+        [ObservableProperty] private string _dynamicTargetType;
 
         /// <summary>
         /// 候选节点 ID 列表：由任务模板直接决定哪些具体的点参与动态分配
         /// </summary>
-        public List<int> CandidateNodeIds { get; set; } = new List<int>();
+        [ObservableProperty] private List<int> _candidateNodeIds = new List<int>();
     }
 }
