@@ -218,14 +218,14 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 {
                     var currentStage = order.Stages.Dequeue();
 
-                    // 【动态寻址处理】
+                    // 【新增：动态寻址处理】
                     if (currentStage.TargetNodeId == 0 && !string.IsNullOrEmpty(currentStage.DynamicTargetType))
                     {
                         while (true)
                         {
                             var currentRobotNode = _mapNodes.FirstOrDefault(n => n.Id == robot.CurrentNode);
                             var candidates = _mapNodes.Where(n =>
-                                n.NodeType.ToString().Equals(currentStage.DynamicTargetType, StringComparison.OrdinalIgnoreCase) &&
+                                n.NodeType.ToString() == currentStage.DynamicTargetType &&
                                 !_reservedNodesCache.Contains(n.Id) &&
                                 !_robots.Any(r => r.CurrentNode == n.Id)).ToList();
 

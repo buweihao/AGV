@@ -26,8 +26,7 @@ namespace BasicRegionNavigation.Core.Entities
         [ObservableProperty] private string _actionCode;
 
         /// <summary>
-        /// 动态目标类型 (可选)，直接存储 NodeType 枚举名称字符串 (如 "Wash", "Unload")。
-        /// 使用 string 彻底规避枚举反序列化失败问题，在调度器中使用忽略大小写的字符串比较。
+        /// 动态目标类型 (可选)，值为 NodeType 枚举名称字符串 (如 "Wash", "Unload")，若配置则 TargetNodeId 作为动态寻址的接收变量
         /// </summary>
         public string DynamicTargetType { get; set; }
 
