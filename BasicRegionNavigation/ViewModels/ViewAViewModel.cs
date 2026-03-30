@@ -155,6 +155,12 @@ namespace BasicRegionNavigation.ViewModels
         [ObservableProperty] private bool _isAutoTaskRunning;
         private CancellationTokenSource _autoTaskCts;
 
+        [ObservableProperty] private double _robotGlobalSpeed = 5.0;
+        partial void OnRobotGlobalSpeedChanged(double value) => BasicRegionNavigation.Infrastructure.Robots.MockRobot.GlobalSpeed = value;
+
+        [ObservableProperty] private int _robotChargeTime = 5000;
+        partial void OnRobotChargeTimeChanged(int value) => BasicRegionNavigation.Infrastructure.Robots.MockRobot.GlobalChargeTimeMs = value;
+
         private readonly IProductionService _productionService;
         private readonly ILoggerService _loggerService;
         private readonly IDatabaseService _databaseService; // 【新增】注入数据库服务
@@ -174,61 +180,7 @@ namespace BasicRegionNavigation.ViewModels
 
             _trafficController = new BasicRegionNavigation.Applications.Controllers.TrafficController();
 
-            // 实例化两台小车
-            var robot1 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
-                id: "AGV-1",
-                trafficController: _trafficController,
-                logger: _loggerService, // 【新增】传入日志服务
-                mapNodes: MapNodes,
-                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-1: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
-            );
-            // 放在西侧节点 4
-            var node4 = MapNodes.FirstOrDefault(n => n.Id == 4) ?? MapNodes.FirstOrDefault();
-            robot1.CurrentNode = node4.Id;
-            robot1.CurrentX = node4.X;
-            robot1.CurrentY = node4.Y;
-            Robot1X = node4.X; Robot1Y = node4.Y;
-            robot1.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot1X = x; Robot1Y = y; }); };
-
-            var robot2 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
-                id: "AGV-2",
-                trafficController: _trafficController,
-                logger: _loggerService, // 【新增】传入日志服务
-                mapNodes: MapNodes,
-                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-2: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
-            );
-            // 放在东侧节点 3
-            var node3 = MapNodes.FirstOrDefault(n => n.Id == 3) ?? MapNodes.FirstOrDefault();
-            robot2.CurrentNode = node3.Id;
-            robot2.CurrentX = node3.X;
-            robot2.CurrentY = node3.Y;
-            Robot2X = node3.X; Robot2Y = node3.Y;
-            robot2.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot2X = x; Robot2Y = y; }); };
-
-            var robot3 = new BasicRegionNavigation.Infrastructure.Robots.MockRobot(
-                id: "AGV-3",
-                trafficController: _trafficController,
-                logger: _loggerService,
-                mapNodes: MapNodes,
-                onError: (errorMsg) => { Application.Current.Dispatcher.Invoke(() => { RobotErrorText = $"AGV-3: {errorMsg}"; RobotErrorVisibility = Visibility.Visible; }); }
-            );
-            // 放在北侧节点 1
-            var node1 = MapNodes.FirstOrDefault(n => n.Id == 1) ?? MapNodes.FirstOrDefault();
-            robot3.CurrentNode = node1.Id;
-            robot3.CurrentX = node1.X;
-            robot3.CurrentY = node1.Y;
-            Robot3X = node1.X; Robot3Y = node1.Y;
-            robot3.OnPositionChanged += (x, y) => { Application.Current.Dispatcher.Invoke(() => { Robot3X = x; Robot3Y = y; }); };
-
-            // 初始占位申请
-            //var startNode1 = MapNodes.First(n => n.Id == 4);
-            //var startNode2 = MapNodes.First(n => n.Id == 3);
-            //var startNode3 = MapNodes.First(n => n.Id == 1);
-            //_ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode1), "AGV-1");
-            //_ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode2), "AGV-2");
-            //_ = trafficController.WaitAndAcquireLockAsync(Global.GetZoneName(startNode3), "AGV-3");
-
-            _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot> { robot1, robot2, robot3 };
+            _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot>();
             RobotList = new ObservableCollection<IRobot>(_robots);
 
             // 实例化 Dispatcher

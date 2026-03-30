@@ -76,6 +76,8 @@
                 <hc:ComboBox SelectedValuePath="Tag" 
                              SelectedValue="{Binding AutoTaskInterval}"
                              Width="110" Height="32" VerticalContentAlignment="Center" FontSize="14" BorderBrush="#2E7D32">
+                    <ComboBoxItem Content="压测 (1s)" Tag="1000"/>
+                    <ComboBoxItem Content="极速 (2s)" Tag="2000"/>
                     <ComboBoxItem Content="快速 (5s)" Tag="5000"/>
                     <ComboBoxItem Content="中速 (15s)" Tag="15000" IsSelected="True"/>
                     <ComboBoxItem Content="慢速 (30s)" Tag="30000"/>
@@ -101,6 +103,17 @@
                         </Style>
                     </Button.Style>
                 </Button>
+            </StackPanel>
+
+            <!-- [新增] 全局属性控制面板 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,15">
+                <TextBlock Text="⚡ 小车移速:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0,0,10,0" Foreground="#E65100"/>
+                <Slider Value="{Binding RobotGlobalSpeed}" Minimum="1" Maximum="30" TickFrequency="1" IsSnapToTickEnabled="True" Width="180" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                <TextBlock Text="{Binding RobotGlobalSpeed, StringFormat={}{0} px/tick}" VerticalAlignment="Center" FontSize="14" Foreground="#E65100" FontWeight="Bold" Width="80"/>
+
+                <TextBlock Text="🔌 充电时间:" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="35,0,10,0" Foreground="#2E7D32"/>
+                <Slider Value="{Binding RobotChargeTime}" Minimum="500" Maximum="10000" TickFrequency="500" IsSnapToTickEnabled="True" Width="180" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                <TextBlock Text="{Binding RobotChargeTime, StringFormat={}{0} ms}" VerticalAlignment="Center" FontSize="14" Foreground="#2E7D32" FontWeight="Bold" Width="80" ToolTip="模拟充满电所需的时间(ms)"/>
             </StackPanel>
         </StackPanel>
 

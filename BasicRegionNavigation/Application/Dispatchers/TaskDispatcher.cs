@@ -142,20 +142,41 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 }
 
                 var firstStage = firstOrder.Stages.Peek();
-                var evalNode = _mapNodes.FirstOrDefault(n => n.Id == firstStage.TargetNodeId);
+                LogicNode evalNode = null;
 
-                // 异常处理：节点不存在时直接丢弃任务
+                // 【修复】兼容首个阶段是动态寻址 (TargetNodeId = 0) 的情况
+                if (firstStage.TargetNodeId == 0 && !string.IsNullOrEmpty(firstStage.DynamicTargetType))
+                {
+                    if (firstStage.CandidateNodeIds != null && firstStage.CandidateNodeIds.Count > 0)
+                    {
+                        // 如果有候选节点，取第一个候选节点用于距离计算的基准
+                        evalNode = _mapNodes.FirstOrDefault(n => n.Id == firstStage.CandidateNodeIds[0]);
+                    }
+                    else
+                    {
+                        // 如果没有指定候选节点列表，随便找一个同类型的节点作为距离评估基准
+                        evalNode = _mapNodes.FirstOrDefault(n => n.NodeType.ToString() == firstStage.DynamicTargetType);
+                    }
+                }
+                else
+                {
+                    // 正常的静态目标节点
+                    evalNode = _mapNodes.FirstOrDefault(n => n.Id == firstStage.TargetNodeId);
+                }
+
+                // 异常处理：节点确实不存在时才丢弃任务
                 if (evalNode == null)
                 {
+                    Serilog.Log.Error($"[调度计算] 任务 {firstOrder.OrderId} 找不到有效的评估节点，已从队列中丢弃。");
                     _orderQueue.Dequeue();
                     continue;
                 }
 
-                // 2. 寻找当前真正空闲且未被预占的小车，且电量必须健康
+                // ... 下方继续保留你原本的寻找空闲车辆、计算 A* 实际距离并分配任务的代码
                 var availableRobots = _robots
                     .Where(r => r.State == RobotState.IDLE && r.BatteryLevel > 20 && !_dispatchedRobotsCache.Contains(r.Id))
                     .ToList();
-                
+
                 if (availableRobots.Count == 0) return; 
 
                 // 3. 【算法实现】就近分配 (勾股定理计算直线距离)

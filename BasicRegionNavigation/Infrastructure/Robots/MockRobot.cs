@@ -12,6 +12,9 @@ namespace BasicRegionNavigation.Infrastructure.Robots
 {
     public partial class MockRobot : ObservableObject, IRobot
     {
+        public static double GlobalSpeed { get; set; } = 5.0; // 【新增】全局移动步长控制
+        public static int GlobalChargeTimeMs { get; set; } = 5000; // 【新增】全局充电耗率控制
+
         [ObservableProperty] private string _id;
         [ObservableProperty] private int _currentNode;
         [ObservableProperty] private double _currentX;
@@ -156,14 +159,14 @@ namespace BasicRegionNavigation.Infrastructure.Robots
                         double dy = nextNode.Y - CurrentY;
                         double distance = Math.Sqrt(dx * dx + dy * dy);
 
-                        if (distance <= 5.0)
+                        if (distance <= GlobalSpeed)
                         {
                             CurrentX = nextNode.X;
                             CurrentY = nextNode.Y;
                             break;
                         }
 
-                        double ratio = 5.0 / distance;
+                        double ratio = GlobalSpeed / distance;
                         CurrentX += dx * ratio;
                         CurrentY += dy * ratio;
                         OnPositionChanged?.Invoke(CurrentX, CurrentY);
@@ -212,7 +215,7 @@ namespace BasicRegionNavigation.Infrastructure.Robots
                     _isCharging = true;
                     SetState(RobotState.CHARGING);
                     Serilog.Log.Debug($"{Id }到达充电位置，开始快速补电...");
-                    await Task.Delay(5000); // 充电 5 秒
+                    await Task.Delay(GlobalChargeTimeMs); // 使用全局充电时间
                     BatteryLevel = 100;
                     _isCharging = false;
                     Serilog.Log.Debug($"{Id}补电完成，电量 -> 100%。");
