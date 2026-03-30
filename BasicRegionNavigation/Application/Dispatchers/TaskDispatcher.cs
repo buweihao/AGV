@@ -76,47 +76,29 @@ namespace BasicRegionNavigation.Applications.Dispatchers
         /// </summary>
         private void OnRobotBatteryLow(IRobot robot)
         {
-            // 如果小车当前正在忙碌，暂时不中断，等它 IDLE 后再触发（或者由 TryDispatch 捕获）
-            // 如果已经是 IDLE 状态，且没有被预占，则立刻下发回充任务
             if (robot.State == RobotState.IDLE && !_dispatchedRobotsCache.Contains(robot.Id))
             {
-                // 1. 寻找最近的充电节点
-                var chargingNode = _mapNodes
-                    .Where(n => n.NodeType == NodeType.Charging)
-                    .OrderBy(n => Math.Sqrt(Math.Pow(n.X - robot.CurrentX, 2) + Math.Pow(n.Y - robot.CurrentY, 2)))
-                    .FirstOrDefault();
+                var chargeOrder = new TaskOrder 
+                { 
+                    OrderId = "CHARGE-" + Guid.NewGuid().ToString().Substring(0, 4),
+                    StageDescription = "低电量自动回充"
+                };
+                
+                // 【关键修复】：不手动算距离，直接使用动态寻址 (DynamicTargetType = "Charging")
+                // 调度器的 ResolveTargetNodeAsync 会自动寻找最近且未被占用的充电桩，并加上防重占锁
+                chargeOrder.Stages.Enqueue(new TaskStage { 
+                    TargetNodeId = 0, 
+                    DynamicTargetType = "Charging", 
+                    WaitTimeMs = 0, 
+                    StageName = "前往快速补电" 
+                });
 
-                if (chargingNode != null)
-                {
-                    // 2. 如果已经身在充电节点，或者就在充电节点旁边，也需要补电（由 MockRobot 内部处理）
-                    // 3. 生成紧急回充任务（通过 prefix 标识）
-                    var chargeOrder = new TaskOrder 
-                    { 
-                        OrderId = "CHARGE-" + Guid.NewGuid().ToString().Substring(0, 4),
-                        StageDescription = "低电量自动回充"
-                    };
-                    chargeOrder.Stages.Enqueue(new TaskStage { TargetNodeId = chargingNode.Id, WaitTimeMs = 0, StageName = "前往快速补电" });
-
-                    var bufferNode = _mapNodes
-                        .Where(n => n.IsBufferNode)
-                        .OrderBy(n => Math.Sqrt(Math.Pow(n.X - chargingNode.X, 2) + Math.Pow(n.Y - chargingNode.Y, 2)))
-                        .FirstOrDefault();
-
-                    if (bufferNode != null)
-                    {
-                        chargeOrder.Stages.Enqueue(new TaskStage { TargetNodeId = bufferNode.Id, WaitTimeMs = 0, StageName = "进入缓冲待命区" });
-                        Serilog.Log.Information($"[自动回充] 侦测到小车 {robot.Id} 电量低 ({robot.BatteryLevel:F1}%)，下发回充任务 (充电桩 {chargingNode.Id} -> 待命区 {bufferNode.Id})");
-                    }
-                    else
-                    {
-                        Serilog.Log.Information($"[自动回充] 侦测到小车 {robot.Id} 电量低 ({robot.BatteryLevel:F1}%)，下发回充任务至充电桩 {chargingNode.Id}");
-                    }
-                    
-                    _dispatchedRobotsCache.Add(robot.Id);
-                    chargeOrder.AssignedRobotId = robot.Id;
-                    chargeOrder.Status = TaskStatus.Executing;
-                    _ = ExecuteTaskAsync(robot, chargeOrder);
-                }
+                _dispatchedRobotsCache.Add(robot.Id);
+                chargeOrder.AssignedRobotId = robot.Id;
+                chargeOrder.Status = TaskStatus.Executing;
+                
+                Serilog.Log.Information($"[自动回充] 侦测到小车 {robot.Id} 电量低，已下发动态回充任务。");
+                _ = ExecuteTaskAsync(robot, chargeOrder);
             }
         }
 
@@ -265,7 +247,9 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     if (_trafficController != null)
                     {
                         robot.RecordStop($"正在申请节点 {targetNode.Id} 的通行证...");
-                        await _trafficController.WaitAndAcquireLockAsync(targetNode.Id.ToString(), robot.Id, priorityDistance);
+                        // 获取对应的区域名称（ZoneName），实现多节点对应单锁
+                        string targetZone = GetZoneName(targetNode);
+                        await _trafficController.WaitAndAcquireLockAsync(targetZone, robot.Id, priorityDistance);
                     }
 
                     try 
@@ -433,7 +417,11 @@ namespace BasicRegionNavigation.Applications.Dispatchers
 
             if (_trafficController != null)
             {
-                _trafficController.ReleaseLock(targetNodeId.ToString(), robotId);
+                // 先查找到映射节点，获取正确的 ZoneName 进行锁释放
+                var node = _mapNodes.FirstOrDefault(n => n.Id == targetNodeId);
+                string zoneName = node != null ? GetZoneName(node) : targetNodeId.ToString();
+                
+                _trafficController.ReleaseLock(zoneName, robotId);
             }
         }
 

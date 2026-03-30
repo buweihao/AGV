@@ -254,7 +254,7 @@
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                                                 <TextBlock Text="{Binding AssignedRobotId}" Foreground="#007BFF" FontWeight="Bold"/>
                                                 <TextBlock Text=" ➔ " Foreground="#888"/>
-                                                <TextBlock Text="{Binding TargetNodeId, StringFormat='节点 {0}'}" Foreground="#555" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding StageDescription}" Foreground="#555" FontWeight="Bold"/>
                                             </StackPanel>
                                             <TextBlock Text="{Binding StatusDisplayText}" FontSize="12" Foreground="#2E8B57" HorizontalAlignment="Right" FontWeight="SemiBold"/>
                                         </StackPanel>
