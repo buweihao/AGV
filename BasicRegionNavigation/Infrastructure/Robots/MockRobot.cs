@@ -23,6 +23,27 @@ namespace BasicRegionNavigation.Infrastructure.Robots
         [ObservableProperty] private double _batteryLevel = 100;
         [ObservableProperty] private string _currentTaskDesc = "-";
 
+        // --- 【新增统计指标】 ---
+        [ObservableProperty] private double _distancePerMinute;
+        [ObservableProperty] private double _tasksPerMinute;
+        [ObservableProperty] private double _batteryPerMinute;
+        [ObservableProperty] private double _maxStopSec;
+        [ObservableProperty] private string _maxStopReasonText = "无";
+
+        private double _totalDistance;
+        private int _totalTasks;
+        private double _totalBatteryUsed;
+        private double _tempDistance; // 暂存本阶段距离
+        private DateTime _lastTaskEndTime;
+        
+        // 用于滑动窗口统计 (最近 60s)
+        private readonly System.Collections.Concurrent.ConcurrentQueue<(DateTime Time, double Value)> _distanceHistory = new();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<(DateTime Time, int Value)> _tasksHistory = new();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<(DateTime Time, double Value)> _batteryHistory = new();
+
+        private DateTime? _stopStartTime;
+        private string _currentStopReason;
+
         public string CurrentStateText => State.ToString();
 
         partial void OnStateChanged(RobotState value) => OnPropertyChanged(nameof(CurrentStateText));
@@ -58,10 +79,90 @@ namespace BasicRegionNavigation.Infrastructure.Robots
             CurrentY = 0;
             CurrentNode = 0;
             SetState(RobotState.IDLE);
+            
+            // 启动后台统计刷新任务 (每 2s 聚合一次)
+            _ = Task.Run(RefreshStatsLoop);
+        }
+
+        private async Task RefreshStatsLoop()
+        {
+            while (true)
+            {
+                try
+                {
+                    var now = DateTime.Now;
+                    var cutoff = now.AddMinutes(-1);
+
+                    // 1. 清理过期数据并求和
+                    DistancePerMinute = CalculateRollingSum(_distanceHistory, cutoff);
+                    TasksPerMinute = CalculateRollingSum(_tasksHistory, cutoff);
+                    BatteryPerMinute = CalculateRollingSum(_batteryHistory, cutoff);
+
+                    // 2. 如果当前处于停止状态（且非人为 IDLE），累加当前停止时长
+                    if (_stopStartTime.HasValue && State != RobotState.MOVING && State != RobotState.CHARGING)
+                    {
+                        var currentStopSec = (now - _stopStartTime.Value).TotalSeconds;
+                        if (currentStopSec > MaxStopSec)
+                        {
+                            MaxStopSec = currentStopSec;
+                            MaxStopReasonText = _currentStopReason ?? "交通拥堵";
+                        }
+                    }
+                }
+                catch { }
+                await Task.Delay(2000);
+            }
+        }
+
+        private double CalculateRollingSum(System.Collections.Concurrent.ConcurrentQueue<(DateTime Time, double Value)> history, DateTime cutoff)
+        {
+            while (history.TryPeek(out var item) && item.Time < cutoff) history.TryDequeue(out _);
+            double sum = 0;
+            foreach (var item in history) sum += item.Value;
+            return sum;
+        }
+
+        private double CalculateRollingSum(System.Collections.Concurrent.ConcurrentQueue<(DateTime Time, int Value)> history, DateTime cutoff)
+        {
+            while (history.TryPeek(out var item) && item.Time < cutoff) history.TryDequeue(out _);
+            double sum = 0;
+            foreach (var item in history) sum += item.Value;
+            return sum;
+        }
+
+        public void RecordStop(string reason)
+        {
+            if (!_stopStartTime.HasValue)
+            {
+                _stopStartTime = DateTime.Now;
+                _currentStopReason = reason;
+            }
+        }
+
+        private void ClearStop()
+        {
+            _stopStartTime = null;
+            _currentStopReason = null;
         }
 
         private void SetState(RobotState state)
         {
+            if (state == RobotState.MOVING || state == RobotState.CHARGING)
+            {
+                ClearStop(); // 开始移动或充电，清除停止计时
+            }
+            else if (State == RobotState.MOVING && state == RobotState.IDLE)
+            {
+                // 如果是移动完成变为空闲，不计入 Stoppage (常规状态)
+                _stopStartTime = null; 
+            }
+            else if (!_stopStartTime.HasValue)
+            {
+                // 进入 IDLE/PAUSED/WAIT 状态，记录开始时间
+                _stopStartTime = DateTime.Now;
+                _currentStopReason = "空闲等待";
+            }
+
             State = state;
             _onStateUpdate?.Invoke(state);
             OnRobotStateChanged?.Invoke(state); // 改个名字
@@ -150,27 +251,48 @@ namespace BasicRegionNavigation.Infrastructure.Robots
                         }
                     }
 
-                    // 物理移动：平滑移动模拟
-                    while (true)
+                    // 物理移动：按实际物理距离计算出行驶时间，然后线性插值平滑动画
                     {
-                        if (_cancelFlag) break;
+                        double startX = CurrentX;
+                        double startY = CurrentY;
 
-                        double dx = nextNode.X - CurrentX;
-                        double dy = nextNode.Y - CurrentY;
-                        double distance = Math.Sqrt(dx * dx + dy * dy);
+                        // 优先从当前节点的字典取配置的实际物理距离；若未配置则降级用坐标距离
+                        double actualEdgeLength = currNodeObj.GetActualDistance(nextNode.Id);
+                        if (actualEdgeLength <= 0)
+                        {
+                            double dx0 = nextNode.X - startX;
+                            double dy0 = nextNode.Y - startY;
+                            actualEdgeLength = Math.Sqrt(dx0 * dx0 + dy0 * dy0);
+                        }
 
-                        if (distance <= GlobalSpeed)
+                        // 总行驶时间（秒）= 物理距离 / 速度；速度单位与距离单位相同
+                        // GlobalSpeed 的含义沿用历史 px/tick，这里我们以"每tick = 50ms"换算为 m/s
+                        // 即 speedMs = GlobalSpeed 米/秒（可在UI调节）
+                        double speedMeterPerSec = GlobalSpeed;
+                        double travelSeconds = actualEdgeLength / speedMeterPerSec;
+                        int totalSteps = Math.Max(1, (int)(travelSeconds * 1000.0 / 50.0)); // 每步 50ms
+
+                        for (int step = 1; step <= totalSteps; step++)
+                        {
+                            if (_cancelFlag) break;
+                            double ratio = (double)step / totalSteps;
+                            CurrentX = startX + (nextNode.X - startX) * ratio;
+                            CurrentY = startY + (nextNode.Y - startY) * ratio;
+                            OnPositionChanged?.Invoke(CurrentX, CurrentY);
+                            
+                            // 距离统计
+                            _distanceHistory.Enqueue((DateTime.Now, actualEdgeLength / totalSteps));
+
+                            await Task.Delay(50);
+                        }
+
+                        // 确保精确到达目标坐标
+                        if (!_cancelFlag)
                         {
                             CurrentX = nextNode.X;
                             CurrentY = nextNode.Y;
-                            break;
+                            OnPositionChanged?.Invoke(CurrentX, CurrentY);
                         }
-
-                        double ratio = GlobalSpeed / distance;
-                        CurrentX += dx * ratio;
-                        CurrentY += dy * ratio;
-                        OnPositionChanged?.Invoke(CurrentX, CurrentY);
-                        await Task.Delay(50);
                     }
 
                     if (!_cancelFlag)
@@ -180,7 +302,10 @@ namespace BasicRegionNavigation.Infrastructure.Robots
                         OnNodeChanged?.Invoke(CurrentNode);
 
                         // 每次移动到一个节点，消耗 2% 电量
-                        BatteryLevel = Math.Max(0, BatteryLevel - 2);
+                        double consumed = 2.0;
+                        BatteryLevel = Math.Max(0, BatteryLevel - consumed);
+                        _batteryHistory.Enqueue((DateTime.Now, consumed));
+
                         if (BatteryLevel <= 20 && !_isCharging)
                         {
                             OnBatteryLow?.Invoke(this);
@@ -224,6 +349,10 @@ namespace BasicRegionNavigation.Infrastructure.Robots
 
                 SetState(RobotState.IDLE);
                 CurrentTaskDesc = "-";
+                
+                // 任务完成统计 (1 min 滑动窗口)
+                _tasksHistory.Enqueue((DateTime.Now, 1));
+
                 Serilog.Log.Debug($"MockRobot {Id}: 任务已完成。");
             }
             else if (_cancelFlag)

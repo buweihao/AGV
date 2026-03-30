@@ -17,6 +17,8 @@ namespace BasicRegionNavigation.Common
 
         /// <summary>
         /// 基于 A* 算法，从起点目标节点寻找符合地图相连逻辑的最佳短路径。
+        /// G 值优先使用 ConnectedNodeDistances 中配置的实际物理长度（米），
+        /// 若未配置则降级为坐标欧氏距离作为兜底。
         /// 返回的路径排除了起点自身，并且按照步进顺序包括终点。
         /// </summary>
         public static List<LogicNode> FindPath(LogicNode startNode, LogicNode targetNode, IEnumerable<LogicNode> allNodes, HashSet<int> blockedNodeIds = null)
@@ -25,7 +27,7 @@ namespace BasicRegionNavigation.Common
             var openList = new List<NodeRecord>();
             var closedList = new HashSet<int>();
 
-            openList.Add(new NodeRecord { Node = startNode, G = 0, F = GetDistance(startNode, targetNode) });
+            openList.Add(new NodeRecord { Node = startNode, G = 0, F = GetHeuristic(startNode, targetNode) });
 
             while (openList.Count > 0)
             {
@@ -53,7 +55,9 @@ namespace BasicRegionNavigation.Common
 
                     if (closedList.Contains(neighbor.Id)) continue; // 如果搜过了就略过
 
-                    double tentativeG = current.G + GetDistance(current.Node, neighbor);
+                    // 优先使用配置的实际物理距离；未配置（返回0）则降级用坐标距离
+                    double edgeCost = GetEdgeCost(current.Node, neighbor);
+                    double tentativeG = current.G + edgeCost;
 
                     var neighborRecord = openList.FirstOrDefault(r => r.Node.Id == neighbor.Id);
                     if (neighborRecord == null)
@@ -63,7 +67,7 @@ namespace BasicRegionNavigation.Common
                             Node = neighbor,
                             Parent = current,
                             G = tentativeG,
-                            F = tentativeG + GetDistance(neighbor, targetNode)
+                            F = tentativeG + GetHeuristic(neighbor, targetNode)
                         });
                     }
                     else if (tentativeG < neighborRecord.G)
@@ -71,7 +75,7 @@ namespace BasicRegionNavigation.Common
                         // 发现有更好的路径到达它
                         neighborRecord.Parent = current;
                         neighborRecord.G = tentativeG;
-                        neighborRecord.F = tentativeG + GetDistance(neighbor, targetNode);
+                        neighborRecord.F = tentativeG + GetHeuristic(neighbor, targetNode);
                     }
                 }
             }
@@ -80,7 +84,8 @@ namespace BasicRegionNavigation.Common
         }
 
         /// <summary>
-        /// 计算两点之间实际路径的总长度。如果不可达，则返回 double.MaxValue。
+        /// 计算两点之间实际路径的总长度（使用配置的物理距离）。
+        /// 如果不可达，则返回 double.MaxValue。
         /// </summary>
         public static double CalculateActualDistance(LogicNode startNode, LogicNode targetNode, IEnumerable<LogicNode> allNodes)
         {
@@ -91,7 +96,7 @@ namespace BasicRegionNavigation.Common
             var openList = new List<NodeRecord>();
             var closedList = new HashSet<int>();
 
-            openList.Add(new NodeRecord { Node = startNode, G = 0, F = GetDistance(startNode, targetNode) });
+            openList.Add(new NodeRecord { Node = startNode, G = 0, F = GetHeuristic(startNode, targetNode) });
 
             while (openList.Count > 0)
             {
@@ -112,7 +117,8 @@ namespace BasicRegionNavigation.Common
                 {
                     if (closedList.Contains(neighbor.Id)) continue;
 
-                    double tentativeG = current.G + GetDistance(current.Node, neighbor);
+                    double edgeCost = GetEdgeCost(current.Node, neighbor);
+                    double tentativeG = current.G + edgeCost;
                     var neighborRecord = openList.FirstOrDefault(r => r.Node.Id == neighbor.Id);
                     
                     if (neighborRecord == null)
@@ -122,14 +128,14 @@ namespace BasicRegionNavigation.Common
                             Node = neighbor,
                             Parent = current,
                             G = tentativeG,
-                            F = tentativeG + GetDistance(neighbor, targetNode)
+                            F = tentativeG + GetHeuristic(neighbor, targetNode)
                         });
                     }
                     else if (tentativeG < neighborRecord.G)
                     {
                         neighborRecord.Parent = current;
                         neighborRecord.G = tentativeG;
-                        neighborRecord.F = tentativeG + GetDistance(neighbor, targetNode);
+                        neighborRecord.F = tentativeG + GetHeuristic(neighbor, targetNode);
                     }
                 }
             }
@@ -137,7 +143,29 @@ namespace BasicRegionNavigation.Common
             return double.MaxValue; // 不可达
         }
 
-        private static double GetDistance(LogicNode a, LogicNode b)
+        /// <summary>
+        /// 获取从节点 from 到相邻节点 to 的路段代价。
+        /// 优先使用 from.ConnectedNodeDistances[to.Id] 中配置的实际物理距离（单位：米）；
+        /// 若未配置（值为0），则降级使用坐标欧氏距离作为兜底。
+        /// </summary>
+        private static double GetEdgeCost(LogicNode from, LogicNode to)
+        {
+            double configured = from.GetActualDistance(to.Id);
+            return configured > 0 ? configured : GetCoordDistance(from, to);
+        }
+
+        /// <summary>
+        /// A* 启发式函数（坐标欧氏距离，始终作为乐观估计的 H 值）
+        /// </summary>
+        private static double GetHeuristic(LogicNode a, LogicNode b)
+        {
+            return GetCoordDistance(a, b);
+        }
+
+        /// <summary>
+        /// UI 坐标系欧氏距离（仅作兜底和启发式 H 值）
+        /// </summary>
+        private static double GetCoordDistance(LogicNode a, LogicNode b)
         {
             double dx = a.X - b.X;
             double dy = a.Y - b.Y;

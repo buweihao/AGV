@@ -272,8 +272,8 @@ namespace BasicRegionNavigation.ViewModels
             // 兜底逻辑
             MapNodes = new ObservableCollection<LogicNode>
             {
-                new LogicNode { Id = 1, X = 100, Y = 100, ConnectedNodeIds = new List<int>{ 2 } },
-                new LogicNode { Id = 2, X = 300, Y = 100, ConnectedNodeIds = new List<int>{ 1 } }
+                new LogicNode { Id = 1, X = 100, Y = 100, ConnectedNodeDistances = new Dictionary<int, double>{ { 2, 10.0 } } },
+                new LogicNode { Id = 2, X = 300, Y = 100, ConnectedNodeDistances = new Dictionary<int, double>{ { 1, 10.0 } } }
             };
             TaskTemplates = new ObservableCollection<TaskTemplate>();
             ComputeDisplayLabels();
@@ -318,17 +318,20 @@ namespace BasicRegionNavigation.ViewModels
                     string edgeKey = nodeA.Id < nodeB.Id ? $"{nodeA.Id}-{nodeB.Id}" : $"{nodeB.Id}-{nodeA.Id}";
                     bool bToA = nodeB.ConnectedNodeIds.Contains(nodeA.Id);
 
+                    // 从字典中读取 A→B 的实际物理距离
+                    double actualLength = nodeA.ConnectedNodeDistances.TryGetValue(nextId, out double dist) ? dist : 0;
+
                     if (bToA)
                     {
                         if (!processed.Contains(edgeKey))
                         {
-                            edges.Add(new MapEdgeViewModel(nodeA.X, nodeA.Y, nodeB.X, nodeB.Y, false));
+                            edges.Add(new MapEdgeViewModel(nodeA.X, nodeA.Y, nodeB.X, nodeB.Y, false, actualLength));
                             processed.Add(edgeKey);
                         }
                     }
                     else
                     {
-                        edges.Add(new MapEdgeViewModel(nodeA.X, nodeA.Y, nodeB.X, nodeB.Y, true));
+                        edges.Add(new MapEdgeViewModel(nodeA.X, nodeA.Y, nodeB.X, nodeB.Y, true, actualLength));
                     }
                 }
             }

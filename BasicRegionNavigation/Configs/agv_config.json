@@ -8,7 +8,10 @@
       "NodeType": "Charging",
       "ConnectedNodeIds": [
         15
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "15": 1
+      }
     },
     {
       "Id": 2,
@@ -18,7 +21,10 @@
       "NodeType": "Charging",
       "ConnectedNodeIds": [
         16
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "16": 1
+      }
     },
     {
       "Id": 3,
@@ -28,7 +34,10 @@
       "NodeType": "Charging",
       "ConnectedNodeIds": [
         17
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "17": 1
+      }
     },
     {
       "Id": 4,
@@ -38,7 +47,10 @@
       "NodeType": "Charging",
       "ConnectedNodeIds": [
         18
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "18": 1
+      }
     },
     {
       "Id": 5,
@@ -48,7 +60,10 @@
       "NodeType": "Charging",
       "ConnectedNodeIds": [
         19
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "19": 1
+      }
     },
     {
       "Id": 6,
@@ -58,7 +73,10 @@
       "NodeType": "Charging",
       "ConnectedNodeIds": [
         20
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "20": 1
+      }
     },
     {
       "Id": 7,
@@ -68,7 +86,10 @@
       "NodeType": "Charging",
       "ConnectedNodeIds": [
         21
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "21": 1
+      }
     },
     {
       "Id": 8,
@@ -78,7 +99,10 @@
       "NodeType": "Charging",
       "ConnectedNodeIds": [
         22
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "22": 1
+      }
     },
     {
       "Id": 9,
@@ -88,7 +112,10 @@
       "NodeType": "Charging",
       "ConnectedNodeIds": [
         23
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "23": 1
+      }
     },
     {
       "Id": 10,
@@ -98,7 +125,10 @@
       "NodeType": "Charging",
       "ConnectedNodeIds": [
         24
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "24": 1
+      }
     },
     {
       "Id": 11,
@@ -108,7 +138,10 @@
       "NodeType": "Buffer",
       "ConnectedNodeIds": [
         25
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "25": 1
+      }
     },
     {
       "Id": 12,
@@ -118,7 +151,10 @@
       "NodeType": "Buffer",
       "ConnectedNodeIds": [
         26
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "26": 1
+      }
     },
     {
       "Id": 13,
@@ -128,7 +164,10 @@
       "NodeType": "Buffer",
       "ConnectedNodeIds": [
         27
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "27": 1
+      }
     },
     {
       "Id": 14,
@@ -138,7 +177,10 @@
       "NodeType": "Buffer",
       "ConnectedNodeIds": [
         28
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "28": 1
+      }
     },
     {
       "Id": 15,
@@ -149,7 +191,11 @@
       "ConnectedNodeIds": [
         16,
         1
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "1": 1,
+        "16": 1
+      }
     },
     {
       "Id": 16,
@@ -160,7 +206,11 @@
       "ConnectedNodeIds": [
         17,
         2
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "2": 1,
+        "17": 1
+      }
     },
     {
       "Id": 17,
@@ -171,7 +221,11 @@
       "ConnectedNodeIds": [
         18,
         3
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "3": 1,
+        "18": 1
+      }
     },
     {
       "Id": 18,
@@ -182,7 +236,11 @@
       "ConnectedNodeIds": [
         19,
         4
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "4": 1,
+        "19": 1
+      }
     },
     {
       "Id": 19,
@@ -193,7 +251,11 @@
       "ConnectedNodeIds": [
         20,
         5
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "5": 1,
+        "20": 1
+      }
     },
     {
       "Id": 20,
@@ -204,7 +266,11 @@
       "ConnectedNodeIds": [
         21,
         6
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "6": 1,
+        "21": 1
+      }
     },
     {
       "Id": 21,
@@ -215,7 +281,11 @@
       "ConnectedNodeIds": [
         22,
         7
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "7": 1,
+        "22": 1
+      }
     },
     {
       "Id": 22,
@@ -226,7 +296,11 @@
       "ConnectedNodeIds": [
         23,
         8
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "8": 1,
+        "23": 1
+      }
     },
     {
       "Id": 23,
@@ -237,7 +311,11 @@
       "ConnectedNodeIds": [
         24,
         9
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "9": 1,
+        "24": 1
+      }
     },
     {
       "Id": 24,
@@ -248,7 +326,11 @@
       "ConnectedNodeIds": [
         10,
         25
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "10": 1,
+        "25": 1.5
+      }
     },
     {
       "Id": 25,
@@ -259,7 +341,11 @@
       "ConnectedNodeIds": [
         26,
         11
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "11": 1,
+        "26": 1
+      }
     },
     {
       "Id": 26,
@@ -270,7 +356,11 @@
       "ConnectedNodeIds": [
         27,
         12
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "12": 1,
+        "27": 1
+      }
     },
     {
       "Id": 27,
@@ -281,7 +371,11 @@
       "ConnectedNodeIds": [
         28,
         13
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "13": 1,
+        "28": 1
+      }
     },
     {
       "Id": 28,
@@ -292,7 +386,11 @@
       "ConnectedNodeIds": [
         14,
         32
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "14": 1,
+        "32": 2.5
+      }
     },
     {
       "Id": 29,
@@ -302,7 +400,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         15
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "15": 1.8
+      }
     },
     {
       "Id": 30,
@@ -312,7 +413,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         29
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "29": 4.5
+      }
     },
     {
       "Id": 31,
@@ -322,7 +426,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         30
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "30": 3
+      }
     },
     {
       "Id": 32,
@@ -332,7 +439,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         39
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "39": 4.3
+      }
     },
     {
       "Id": 33,
@@ -342,7 +452,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         39
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "39": 1.5
+      }
     },
     {
       "Id": 34,
@@ -352,7 +465,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         39
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "39": 1.6
+      }
     },
     {
       "Id": 35,
@@ -362,7 +478,10 @@
       "NodeType": "Buffer",
       "ConnectedNodeIds": [
         40
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "40": 1
+      }
     },
     {
       "Id": 36,
@@ -372,7 +491,10 @@
       "NodeType": "Buffer",
       "ConnectedNodeIds": [
         41
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "41": 1
+      }
     },
     {
       "Id": 37,
@@ -382,7 +504,10 @@
       "NodeType": "Buffer",
       "ConnectedNodeIds": [
         42
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "42": 1
+      }
     },
     {
       "Id": 38,
@@ -392,7 +517,10 @@
       "NodeType": "Buffer",
       "ConnectedNodeIds": [
         43
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "43": 1
+      }
     },
     {
       "Id": 39,
@@ -404,7 +532,12 @@
         33,
         34,
         45
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "33": 1.5,
+        "34": 1.6,
+        "45": 1.6
+      }
     },
     {
       "Id": 40,
@@ -415,7 +548,11 @@
       "ConnectedNodeIds": [
         41,
         35
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "35": 1,
+        "41": 1
+      }
     },
     {
       "Id": 41,
@@ -426,7 +563,11 @@
       "ConnectedNodeIds": [
         42,
         36
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "36": 1,
+        "42": 1
+      }
     },
     {
       "Id": 42,
@@ -437,7 +578,11 @@
       "ConnectedNodeIds": [
         43,
         37
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "37": 1,
+        "43": 1
+      }
     },
     {
       "Id": 43,
@@ -448,7 +593,11 @@
       "ConnectedNodeIds": [
         38,
         44
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "38": 1,
+        "44": 1.5
+      }
     },
     {
       "Id": 44,
@@ -459,7 +608,11 @@
       "ConnectedNodeIds": [
         31,
         39
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "31": 4.7,
+        "39": 2.7
+      }
     },
     {
       "Id": 45,
@@ -470,7 +623,11 @@
       "ConnectedNodeIds": [
         54,
         46
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "46": 1.5,
+        "54": 1.5
+      }
     },
     {
       "Id": 46,
@@ -481,7 +638,11 @@
       "ConnectedNodeIds": [
         47,
         56
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "47": 2,
+        "56": 1.5
+      }
     },
     {
       "Id": 47,
@@ -492,7 +653,11 @@
       "ConnectedNodeIds": [
         48,
         59
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "48": 2,
+        "59": 1.5
+      }
     },
     {
       "Id": 48,
@@ -503,7 +668,11 @@
       "ConnectedNodeIds": [
         49,
         62
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "49": 2.5,
+        "62": 1.5
+      }
     },
     {
       "Id": 49,
@@ -513,7 +682,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         75
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "75": 2.5
+      }
     },
     {
       "Id": 50,
@@ -523,7 +695,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         40
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "40": 1.5
+      }
     },
     {
       "Id": 51,
@@ -533,7 +708,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         69
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "69": 1.4
+      }
     },
     {
       "Id": 52,
@@ -543,7 +721,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         69
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "69": 1
+      }
     },
     {
       "Id": 53,
@@ -553,7 +734,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         69
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "69": 1.4
+      }
     },
     {
       "Id": 54,
@@ -563,7 +747,10 @@
       "NodeType": "Unload",
       "ConnectedNodeIds": [
         45
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "45": 1.5
+      }
     },
     {
       "Id": 55,
@@ -573,7 +760,10 @@
       "NodeType": "Load",
       "ConnectedNodeIds": [
         56
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "56": 0.5
+      }
     },
     {
       "Id": 56,
@@ -585,7 +775,12 @@
         55,
         57,
         46
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "46": 1.5,
+        "55": 0.5,
+        "57": 0.5
+      }
     },
     {
       "Id": 57,
@@ -595,7 +790,10 @@
       "NodeType": "Unload",
       "ConnectedNodeIds": [
         56
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "56": 0.5
+      }
     },
     {
       "Id": 58,
@@ -605,7 +803,10 @@
       "NodeType": "Load",
       "ConnectedNodeIds": [
         59
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "59": 0.5
+      }
     },
     {
       "Id": 59,
@@ -615,7 +816,10 @@
       "NodeType": "Normal",
       "ConnectedNodeIds": [
         47
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "47": 1.5
+      }
     },
     {
       "Id": 60,
@@ -625,7 +829,10 @@
       "NodeType": "Unload",
       "ConnectedNodeIds": [
         59
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "59": 0.5
+      }
     },
     {
       "Id": 61,
@@ -635,7 +842,10 @@
       "NodeType": "Load",
       "ConnectedNodeIds": [
         62
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "62": 0.5
+      }
     },
     {
       "Id": 62,
@@ -647,7 +857,12 @@
         61,
         63,
         48
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "48": 1.5,
+        "61": 0.5,
+        "63": 0.5
+      }
     },
     {
       "Id": 63,
@@ -657,7 +872,10 @@
       "NodeType": "Unload",
       "ConnectedNodeIds": [
         62
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "62": 0.5
+      }
     },
     {
       "Id": 64,
@@ -665,7 +883,8 @@
       "Y": 950,
       "ZoneName": "Z60",
       "NodeType": "Load",
-      "ConnectedNodeIds": []
+      "ConnectedNodeIds": [],
+      "ConnectedNodeDistances": {}
     },
     {
       "Id": 65,
@@ -676,7 +895,11 @@
       "ConnectedNodeIds": [
         76,
         50
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "50": 1.8,
+        "76": 1
+      }
     },
     {
       "Id": 66,
@@ -687,7 +910,11 @@
       "ConnectedNodeIds": [
         77,
         65
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "65": 1,
+        "77": 1
+      }
     },
     {
       "Id": 67,
@@ -698,7 +925,11 @@
       "ConnectedNodeIds": [
         78,
         66
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "66": 1,
+        "78": 1
+      }
     },
     {
       "Id": 68,
@@ -709,7 +940,11 @@
       "ConnectedNodeIds": [
         79,
         67
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "67": 1,
+        "79": 1
+      }
     },
     {
       "Id": 69,
@@ -723,7 +958,14 @@
         52,
         51,
         91
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "51": 1.4,
+        "52": 1,
+        "53": 1.4,
+        "68": 1.5,
+        "91": 4
+      }
     },
     {
       "Id": 70,
@@ -734,7 +976,11 @@
       "ConnectedNodeIds": [
         69,
         92
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "69": 1,
+        "92": 4
+      }
     },
     {
       "Id": 71,
@@ -745,7 +991,11 @@
       "ConnectedNodeIds": [
         80,
         70
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "70": 1,
+        "80": 1.5
+      }
     },
     {
       "Id": 72,
@@ -756,7 +1006,11 @@
       "ConnectedNodeIds": [
         71,
         82
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "71": 1.5,
+        "82": 1.5
+      }
     },
     {
       "Id": 73,
@@ -767,7 +1021,11 @@
       "ConnectedNodeIds": [
         72,
         85
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "72": 2,
+        "85": 1.5
+      }
     },
     {
       "Id": 74,
@@ -778,7 +1036,11 @@
       "ConnectedNodeIds": [
         73,
         88
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "73": 2,
+        "88": 1.5
+      }
     },
     {
       "Id": 75,
@@ -789,7 +1051,11 @@
       "ConnectedNodeIds": [
         74,
         90
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "74": 2.5,
+        "90": 1.8
+      }
     },
     {
       "Id": 76,
@@ -799,7 +1065,10 @@
       "NodeType": "Wash",
       "ConnectedNodeIds": [
         65
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "65": 1
+      }
     },
     {
       "Id": 77,
@@ -809,7 +1078,10 @@
       "NodeType": "Wash",
       "ConnectedNodeIds": [
         66
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "66": 1
+      }
     },
     {
       "Id": 78,
@@ -819,7 +1091,10 @@
       "NodeType": "Wash",
       "ConnectedNodeIds": [
         67
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "67": 1
+      }
     },
     {
       "Id": 79,
@@ -829,7 +1104,10 @@
       "NodeType": "Wash",
       "ConnectedNodeIds": [
         68
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "68": 1
+      }
     },
     {
       "Id": 80,
@@ -839,7 +1117,10 @@
       "NodeType": "Unload",
       "ConnectedNodeIds": [
         71
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "71": 1.5
+      }
     },
     {
       "Id": 81,
@@ -849,7 +1130,10 @@
       "NodeType": "Load",
       "ConnectedNodeIds": [
         82
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "82": 0.5
+      }
     },
     {
       "Id": 82,
@@ -861,7 +1145,12 @@
         81,
         83,
         72
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "72": 1.5,
+        "81": 0.5,
+        "83": 0.5
+      }
     },
     {
       "Id": 83,
@@ -871,7 +1160,10 @@
       "NodeType": "Unload",
       "ConnectedNodeIds": [
         82
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "82": 0.5
+      }
     },
     {
       "Id": 84,
@@ -881,7 +1173,10 @@
       "NodeType": "Load",
       "ConnectedNodeIds": [
         85
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "85": 0.5
+      }
     },
     {
       "Id": 85,
@@ -893,7 +1188,12 @@
         84,
         86,
         73
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "73": 1.5,
+        "84": 0.5,
+        "86": 0.5
+      }
     },
     {
       "Id": 86,
@@ -903,7 +1203,10 @@
       "NodeType": "Unload",
       "ConnectedNodeIds": [
         85
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "85": 0.5
+      }
     },
     {
       "Id": 87,
@@ -913,7 +1216,10 @@
       "NodeType": "Load",
       "ConnectedNodeIds": [
         88
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "88": 0.5
+      }
     },
     {
       "Id": 88,
@@ -925,7 +1231,12 @@
         87,
         89,
         74
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "74": 1.5,
+        "87": 0.5,
+        "89": 0.5
+      }
     },
     {
       "Id": 89,
@@ -935,7 +1246,10 @@
       "NodeType": "Unload",
       "ConnectedNodeIds": [
         88
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "88": 0.5
+      }
     },
     {
       "Id": 90,
@@ -945,7 +1259,10 @@
       "NodeType": "Load",
       "ConnectedNodeIds": [
         75
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "75": 1.8
+      }
     },
     {
       "Id": 91,
@@ -955,7 +1272,10 @@
       "NodeType": "Unload",
       "ConnectedNodeIds": [
         69
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "69": 4
+      }
     },
     {
       "Id": 92,
@@ -965,7 +1285,10 @@
       "NodeType": "Load",
       "ConnectedNodeIds": [
         70
-      ]
+      ],
+      "ConnectedNodeDistances": {
+        "70": 4
+      }
     }
   ],
   "TaskTemplates": [
@@ -1191,5 +1514,6 @@
       "x2": 1000,
       "y2": 1450
     }
-  ]
+  ],
+  "PixelsPerMeter": 100
 }

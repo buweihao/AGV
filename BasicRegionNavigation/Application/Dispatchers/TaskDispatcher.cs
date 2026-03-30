@@ -264,6 +264,7 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     // 步骤 B：申请交通控制锁 (自带超时机制)
                     if (_trafficController != null)
                     {
+                        robot.RecordStop($"正在申请节点 {targetNode.Id} 的通行证...");
                         await _trafficController.WaitAndAcquireLockAsync(targetNode.Id.ToString(), robot.Id, priorityDistance);
                     }
 
