@@ -384,6 +384,9 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 var occupantRobot = _robots.FirstOrDefault(r => r.Id != currentRobot.Id && r.CurrentNode == targetNode.Id);
                 if (occupantRobot == null) break;
 
+                // 【新增日志】死锁预警：当前节点被物理占用
+                Serilog.Log.Warning($"[死锁预警] 车辆 {currentRobot.Id} 无法进入节点 {targetNode.Id}，该点被车辆 {occupantRobot.Id} (状态: {occupantRobot.State}) 物理占用。");
+
                 if (waited >= maxWaitSeconds)
                 {
                     Serilog.Log.Error($"[死锁警告] 车 {currentRobot.Id} 试图驱赶目标节点 {targetNode.Id} 上的车 {occupantRobot.Id}，但等待 {maxWaitSeconds}s 失败！强行中止驱赶。");

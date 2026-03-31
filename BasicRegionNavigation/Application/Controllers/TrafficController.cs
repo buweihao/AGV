@@ -70,7 +70,23 @@ namespace BasicRegionNavigation.Applications.Controllers
                             {
                                 _lockedZones[zoneName] = robotId;
                                 _waitingQueues[zoneName].RemoveAll(x => x.RobotId == robotId);
-                                return; // 成功拿到锁
+                                // 【新增日志】
+                                Serilog.Log.Information($"[交通管制] 成功获取锁: 区域={zoneName}, 车辆={robotId}");
+                                return;
+                            }
+                            else 
+                            {
+                                // 【新增日志】排在第一位但锁被别人拿着
+                                Serilog.Log.Warning($"[交通管制] {robotId} 位于队列首位，但区域 {zoneName} 仍被 {_lockedZones[zoneName]} 占用");
+                            }
+                        }
+                        else 
+                        {
+                            // 【新增周期性日志】每隔 5 秒打印一次排队详情，防止死锁时日志静默
+                            if (retryCount % 50 == 0) 
+                            {
+                                var queueInfo = string.Join(" -> ", System.Linq.Enumerable.Select(_waitingQueues[zoneName], x => $"{x.RobotId}(P:{x.Priority})"));
+                                Serilog.Log.Debug($"[交通管制] {robotId} 等待中: 区域={zoneName}, 队列位置={_waitingQueues[zoneName].FindIndex(x => x.RobotId == robotId)}, 完整队列=[{queueInfo}]");
                             }
                         }
                     }

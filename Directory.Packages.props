@@ -32,6 +32,7 @@
     <PackageVersion Include="Prism.Unity" Version="$(PrismVersion)" />
     <PackageVersion Include="PropertyChanged.Fody" Version="4.1.0" />
     <PackageVersion Include="Serilog" Version="4.3.0" />
+    <PackageVersion Include="Serilog.Enrichers.Thread" Version="4.0.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="9.0.3-dev-02320" />
     <PackageVersion Include="Serilog.Settings.Configuration" Version="9.0.1-dev-02317" />
     <PackageVersion Include="Serilog.Sinks.Async" Version="2.1.0" />

@@ -1,4 +1,4 @@
-﻿using BasicRegionNavigation.Helper;
+using BasicRegionNavigation.Helper;
 using BasicRegionNavigation.Services;
 using BasicRegionNavigation.ViewModels;
 using BasicRegionNavigation.Views;
@@ -31,16 +31,17 @@ namespace BasicRegionNavigation
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Debug() // 设置最低日志级别
                 .Enrich.FromLogContext()
+                .Enrich.WithThreadId() // 增强线程 ID (需要 Serilog.Enrichers.Thread)
                 // 输出到 Visual Studio 调试窗口
-                .WriteTo.Debug(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                .WriteTo.Debug(outputTemplate: "[{Timestamp:HH:mm:ss.fff} {Level:u3}] [Thread {ThreadId}] {Message:lj}{NewLine}{Exception}")
                 // 输出到控制台 (Console)
-                .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss.fff} {Level:u3}] [Thread {ThreadId}] {Message:lj}{NewLine}{Exception}")
                 // 异步输出到文件 (按天滚动保存，保留最近30天)
                 .WriteTo.Async(a => a.File(
                     path: "logs/system_.log",
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 30,
-                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [Thread {ThreadId}] {Message:lj}{NewLine}{Exception}"))
                 .CreateLogger();
 
             Log.Information("======== 应用程序启动 ========");

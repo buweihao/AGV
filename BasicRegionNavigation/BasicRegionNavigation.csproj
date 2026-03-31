@@ -80,6 +80,7 @@
 		<PackageReference Include="Prism.Core" />
 		<PackageReference Include="Prism.DryIoc" />
 		<PackageReference Include="Serilog" />
+		<PackageReference Include="Serilog.Enrichers.Thread" />
 		<PackageReference Include="Serilog.Extensions.Logging" />
 		<PackageReference Include="Serilog.Settings.Configuration" />
 		<PackageReference Include="Serilog.Sinks.Async" />
