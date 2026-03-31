@@ -24,6 +24,14 @@ namespace BasicRegionNavigation.Applications.Controllers
 
         public async Task WaitAndAcquireLockAsync(string zoneName, string robotId, double priority = 0)
         {
+            // 【新增修复：重入锁直接放行】
+            lock (_lockObj)
+            {
+                if (_lockedZones.ContainsKey(zoneName) && _lockedZones[zoneName] == robotId)
+                {
+                    return; // 自己已经拥有这个锁，直接放行，无需重新排队
+                }
+            }
             int retryCount = 0;
             int maxRetries = _timeoutMs / 100;
             

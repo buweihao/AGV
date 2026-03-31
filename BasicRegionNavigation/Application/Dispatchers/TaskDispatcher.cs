@@ -376,11 +376,19 @@ namespace BasicRegionNavigation.Applications.Dispatchers
 
         private async Task CheckAndClearPhysicalOccupancyAsync(IRobot currentRobot, LogicNode targetNode)
         {
-            // 确保在迈向阶段目标点前，清理终点占位车
+            int maxWaitSeconds = 30; // 最大等待30秒
+            int waited = 0;
+
             while (true)
             {
                 var occupantRobot = _robots.FirstOrDefault(r => r.Id != currentRobot.Id && r.CurrentNode == targetNode.Id);
                 if (occupantRobot == null) break;
+
+                if (waited >= maxWaitSeconds)
+                {
+                    Serilog.Log.Error($"[死锁警告] 车 {currentRobot.Id} 试图驱赶目标节点 {targetNode.Id} 上的车 {occupantRobot.Id}，但等待 {maxWaitSeconds}s 失败！强行中止驱赶。");
+                    throw new Exception("驱赶目标点车辆超时，路网死锁"); // 抛出异常让外层捕获，任务转为 Fault 状态并释放锁
+                }
 
                 if (occupantRobot.State == RobotState.IDLE)
                 {
@@ -393,16 +401,20 @@ namespace BasicRegionNavigation.Applications.Dispatchers
 
                     if (bufferNode != null)
                     {
+                        Serilog.Log.Information($"[路权管理] 正在将车 {occupantRobot.Id} 驱离至缓冲节点 {bufferNode.Id}...");
                         await occupantRobot.GoToNodeAsync(bufferNode);
                     }
                     else
                     {
                         await Task.Delay(1000); 
+                        waited++;
                     }
                 }
                 else
                 {
+                    // 占用车不是 IDLE（可能故障了），无法驱赶
                     await Task.Delay(1000); 
+                    waited++;
                 }
             }
         }
