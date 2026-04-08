@@ -79,7 +79,7 @@ export default function App() {
   const [paintZoneName, setPaintZoneName] = useState('Z1');
   const [hoveredZoneName, setHoveredZoneName] = useState<string | null>(null);
   const [drawingElement, setDrawingElement] = useState<VisualElement | null>(null);
-  const [editingConnection, setEditingConnection] = useState<{from: number, to: number} | null>(null);
+  const [editingConnection, setEditingConnection] = useState<{ from: number, to: number } | null>(null);
   const [pixelsPerMeter, setPixelsPerMeter] = useState<number>(100);
 
   // Task Mode State
@@ -93,7 +93,7 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Derived State
-  const selectedTemplate = useMemo(() => 
+  const selectedTemplate = useMemo(() =>
     templates.find(t => t.TemplateId === selectedTemplateId),
     [templates, selectedTemplateId]
   );
@@ -221,7 +221,7 @@ export default function App() {
     // offsetWidth is the reference 5000px, while rect.width is the physical screen pixels.
     const totalScaleX = rect.width / innerContainerRef.current.offsetWidth;
     const totalScaleY = rect.height / innerContainerRef.current.offsetHeight;
-    
+
     return {
       x: (e.clientX - rect.left) / totalScaleX,
       y: (e.clientY - rect.top) / totalScaleY
@@ -231,7 +231,7 @@ export default function App() {
   const handleCanvasMouseDown = (e: MouseEvent) => {
     if (mainMode === 'map') {
       const { x, y } = getRelativeCoords(e);
-      
+
       // Snap to grid
       const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
       const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
@@ -245,7 +245,7 @@ export default function App() {
           NodeType: selectedNodeType,
           ConnectedNodeDistances: {}
         };
-        
+
         setNodes([...nodes, newNode]);
       } else if (mapMode === 'connect') {
         setConnectingFrom(null);
@@ -271,11 +271,11 @@ export default function App() {
 
   const handleNodeMouseDown = (e: MouseEvent, id: number) => {
     e.stopPropagation();
-    
+
     if (mainMode === 'map') {
       if (mapMode === 'select') {
         const { x: mouseX, y: mouseY } = getRelativeCoords(e);
-        
+
         if (!selectedNodeIds.includes(id)) {
           if (e.shiftKey) {
             setSelectedNodeIds([...selectedNodeIds, id]);
@@ -329,8 +329,8 @@ export default function App() {
             WaitTimeMs: 0,
             StageName: `前往 ${node.ZoneName}`
           };
-          setTemplates(templates.map(t => 
-            t.TemplateId === selectedTemplateId 
+          setTemplates(templates.map(t =>
+            t.TemplateId === selectedTemplateId
               ? { ...t, Stages: [...t.Stages, newStage] }
               : t
           ));
@@ -374,8 +374,8 @@ export default function App() {
         const dx = x - lastMousePos.x;
         const dy = y - lastMousePos.y;
         setLastMousePos({ x, y });
-        
-        setNodes(nodes.map(n => 
+
+        setNodes(nodes.map(n =>
           selectedNodeIds.includes(n.Id) ? { ...n, X: n.X + dx, Y: n.Y + dy } : n
         ));
         setVisualElements(visualElements.map(el =>
@@ -463,7 +463,7 @@ export default function App() {
 
   const saveNodeEdit = () => {
     if (editingNodeId !== null) {
-      setNodes(nodes.map(n => 
+      setNodes(nodes.map(n =>
         n.Id === editingNodeId ? { ...n, ZoneName: editZoneName } : n
       ));
       setEditingNodeId(null);
@@ -565,10 +565,10 @@ export default function App() {
       Stages: t.Stages.map(s => {
         if (s.TargetNodeId === 0) {
           // Dynamic stage
-          let newCandidateIds = s.CandidateNodeIds 
+          let newCandidateIds = s.CandidateNodeIds
             ? s.CandidateNodeIds.map(id => idMap.get(id)).filter((id): id is number => id !== undefined)
             : undefined;
-          
+
           return {
             ...s,
             CandidateNodeIds: newCandidateIds,
@@ -578,7 +578,7 @@ export default function App() {
 
         const newTargetId = idMap.get(s.TargetNodeId);
         if (!newTargetId) return s;
-        
+
         let newStageName = s.StageName;
         const oldNode = nodes.find(n => n.Id === s.TargetNodeId);
         if (oldNode && oldNode.ZoneName) {
@@ -612,7 +612,7 @@ export default function App() {
       PixelsPerMeter: pixelsPerMeter
     };
     const dataStr = JSON.stringify(config, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
     const exportFileDefaultName = 'agv_config.json';
 
     const linkElement = document.createElement('a');
@@ -628,7 +628,7 @@ export default function App() {
       fileReader.onload = e => {
         try {
           const parsed = JSON.parse(e.target?.result as string) as AgvConfig & { VisualElements?: VisualElement[] };
-          
+
           const importedPixelsPerMeter = parsed.PixelsPerMeter || 100;
           setPixelsPerMeter(importedPixelsPerMeter);
 
@@ -674,7 +674,7 @@ export default function App() {
     const dy = y2 - y1;
     const distance = Math.sqrt(dx * dx + dy * dy);
     if (distance === 0) return { startX: x1, startY: y1, endX: x2, endY: y2 };
-    
+
     const ratio = radius / distance;
     return {
       startX: x1 + dx * ratio,
@@ -738,22 +738,20 @@ export default function App() {
             </div>
             <h1 className="text-lg font-bold text-white tracking-tight">WCS Configurator</h1>
           </div>
-          
+
           <div className="flex bg-neutral-900 rounded-lg p-1 border border-neutral-800">
             <button
               onClick={() => setMainMode('map')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                mainMode === 'map' ? 'bg-neutral-700 text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
-              }`}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${mainMode === 'map' ? 'bg-neutral-700 text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
+                }`}
             >
               <MapIcon size={16} />
               地图编辑模式
             </button>
             <button
               onClick={() => setMainMode('task')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                mainMode === 'task' ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
-              }`}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${mainMode === 'task' ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
+                }`}
             >
               <Route size={16} />
               任务编排模式
@@ -822,11 +820,11 @@ export default function App() {
                   <span className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-green-500"></span>
                     当前工具: <strong className="text-neutral-200 capitalize">
-                      {mapMode === 'select' ? '选择/拖拽' : 
-                       mapMode === 'add' ? '添加节点' : 
-                       mapMode === 'connect' ? '连线' : 
-                       mapMode === 'paint_zone' ? '管制区刷子' : 
-                       mapMode === 'draw_line' ? '画墙' : '画区域'}
+                      {mapMode === 'select' ? '选择/拖拽' :
+                        mapMode === 'add' ? '添加节点' :
+                          mapMode === 'connect' ? '连线' :
+                            mapMode === 'paint_zone' ? '管制区刷子' :
+                              mapMode === 'draw_line' ? '画墙' : '画区域'}
                     </strong>
                   </span>
                   {mapMode === 'add' && (
@@ -852,7 +850,7 @@ export default function App() {
           </div>
 
           {/* Canvas Scroll Container */}
-          <div 
+          <div
             ref={canvasRef}
             className={`flex-1 overflow-auto relative w-full h-full select-none ${mainMode === 'map' ? 'cursor-crosshair' : 'cursor-default'}`}
           >
@@ -872,7 +870,7 @@ export default function App() {
               onContextMenu={(e) => e.preventDefault()}
             >
               {/* Grid Background */}
-              <div 
+              <div
                 className="absolute top-0 left-0 pointer-events-none w-full h-full"
                 style={{
                   backgroundImage: `
@@ -885,274 +883,273 @@ export default function App() {
               />
 
               {/* SVG Layer for Lines */}
-            <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none">
-              <defs>
-                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                  <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
-                </marker>
-                <marker id="arrowhead-task" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                  <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
-                </marker>
-              </defs>
+              <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none">
+                <defs>
+                  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
+                  </marker>
+                  <marker id="arrowhead-task" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
+                  </marker>
+                </defs>
 
-              {/* Visual Elements */}
-              {visualElements.concat(drawingElement ? [drawingElement] : []).map(el => {
-                const isSelected = selectedElementIds.includes(el.id);
-                if (el.type === 'line') {
-                  return (
-                    <g 
-                      key={`ve-${el.id}`} 
-                      className={mainMode === 'map' && mapMode === 'select' ? "pointer-events-auto cursor-pointer group" : "pointer-events-none"}
-                      onDoubleClick={(e) => { 
-                        e.stopPropagation(); 
-                        if (mainMode === 'map' && mapMode === 'select') {
-                          setVisualElements(visualElements.filter(v => v.id !== el.id)); 
-                        }
-                      }}
-                      onMouseDown={(e) => handleElementMouseDown(e, el.id)}
-                    >
-                      <line x1={el.x1} y1={el.y1} x2={el.x2} y2={el.y2} stroke="transparent" strokeWidth="20" />
-                      <line 
-                        x1={el.x1} y1={el.y1} x2={el.x2} y2={el.y2} 
-                        stroke={isSelected ? "#3b82f6" : "#6b7280"} 
-                        strokeWidth={isSelected ? "6" : "4"} 
-                        strokeLinecap="round"
-                        className={mainMode === 'map' && mapMode === 'select' && !isSelected ? "group-hover:stroke-red-500 transition-colors" : ""}
-                      />
-                    </g>
-                  );
-                } else {
-                  const x = Math.min(el.x1, el.x2);
-                  const y = Math.min(el.y1, el.y2);
-                  const w = Math.abs(el.x1 - el.x2);
-                  const h = Math.abs(el.y1 - el.y2);
-                  return (
-                    <rect 
-                      key={`ve-${el.id}`} 
-                      x={x} y={y} width={w} height={h} 
-                      fill={isSelected ? "#3b82f6" : "#374151"} 
-                      fillOpacity={isSelected ? "0.4" : "0.3"} 
-                      stroke={isSelected ? "#60a5fa" : "#4b5563"} 
-                      strokeWidth={isSelected ? "3" : "2"}
-                      onDoubleClick={(e) => { 
-                        e.stopPropagation(); 
-                        if (mainMode === 'map' && mapMode === 'select') {
-                          setVisualElements(visualElements.filter(v => v.id !== el.id)); 
-                        }
-                      }}
-                      onMouseDown={(e) => handleElementMouseDown(e, el.id)}
-                      className={mainMode === 'map' && mapMode === 'select' && !isSelected ? "cursor-pointer hover:stroke-red-500 hover:fill-red-500/20 transition-colors pointer-events-auto" : (mainMode === 'map' && mapMode === 'select' ? "cursor-pointer pointer-events-auto" : "pointer-events-none")}
-                    />
-                  );
-                }
-              })}
-
-              {/* Map Connections (Base Layer) */}
-              {nodes.map(node => 
-                Object.keys(node.ConnectedNodeDistances || {}).map(targetIdStr => {
-                  const targetId = parseInt(targetIdStr);
-                  const targetNode = nodes.find(n => n.Id === targetId);
-                  if (!targetNode) return null;
-                  
-                  const isBidirectional = targetNode.ConnectedNodeDistances && (node.Id.toString() in targetNode.ConnectedNodeDistances);
-                  
-                  let offset = { x: 0, y: 0 };
-                  if (isBidirectional) {
-                    const dx = targetNode.X - node.X;
-                    const dy = targetNode.Y - node.Y;
-                    const length = Math.sqrt(dx * dx + dy * dy);
-                    if (length > 0) {
-                      offset = { x: -dy / length * 5, y: dx / length * 5 };
-                    }
-                  }
-
-                  const { startX, startY, endX, endY } = getLineEndpoints(
-                    node.X + offset.x, node.Y + offset.y, 
-                    targetNode.X + offset.x, targetNode.Y + offset.y, 
-                    NODE_RADIUS + 2
-                  );
-                  
-                  const midX = (startX + endX) / 2;
-                  const midY = (startY + endY) / 2;
-                  const distance = node.ConnectedNodeDistances[targetIdStr];
-
-                  return (
-                    <g 
-                      key={`map-${node.Id}-${targetId}`} 
-                      className={mainMode === 'map' && mapMode === 'select' ? "pointer-events-auto cursor-pointer group" : "pointer-events-none"} 
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (mainMode === 'map' && mapMode === 'select') {
-                          if (e.shiftKey) {
-                            removeConnection(node.Id, targetId);
-                          } else {
-                            setEditingConnection({from: node.Id, to: targetId});
+                {/* Visual Elements */}
+                {visualElements.concat(drawingElement ? [drawingElement] : []).map(el => {
+                  const isSelected = selectedElementIds.includes(el.id);
+                  if (el.type === 'line') {
+                    return (
+                      <g
+                        key={`ve-${el.id}`}
+                        className={mainMode === 'map' && mapMode === 'select' ? "pointer-events-auto cursor-pointer group" : "pointer-events-none"}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          if (mainMode === 'map' && mapMode === 'select') {
+                            setVisualElements(visualElements.filter(v => v.id !== el.id));
                           }
-                        }
-                      }}
-                    >
-                      <line x1={startX} y1={startY} x2={endX} y2={endY} stroke="rgba(255,255,255,0.01)" strokeWidth="24" />
+                        }}
+                        onMouseDown={(e) => handleElementMouseDown(e, el.id)}
+                      >
+                        <line x1={el.x1} y1={el.y1} x2={el.x2} y2={el.y2} stroke="transparent" strokeWidth="20" />
+                        <line
+                          x1={el.x1} y1={el.y1} x2={el.x2} y2={el.y2}
+                          stroke={isSelected ? "#3b82f6" : "#6b7280"}
+                          strokeWidth={isSelected ? "6" : "4"}
+                          strokeLinecap="round"
+                          className={mainMode === 'map' && mapMode === 'select' && !isSelected ? "group-hover:stroke-red-500 transition-colors" : ""}
+                        />
+                      </g>
+                    );
+                  } else {
+                    const x = Math.min(el.x1, el.x2);
+                    const y = Math.min(el.y1, el.y2);
+                    const w = Math.abs(el.x1 - el.x2);
+                    const h = Math.abs(el.y1 - el.y2);
+                    return (
+                      <rect
+                        key={`ve-${el.id}`}
+                        x={x} y={y} width={w} height={h}
+                        fill={isSelected ? "#3b82f6" : "#374151"}
+                        fillOpacity={isSelected ? "0.4" : "0.3"}
+                        stroke={isSelected ? "#60a5fa" : "#4b5563"}
+                        strokeWidth={isSelected ? "3" : "2"}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          if (mainMode === 'map' && mapMode === 'select') {
+                            setVisualElements(visualElements.filter(v => v.id !== el.id));
+                          }
+                        }}
+                        onMouseDown={(e) => handleElementMouseDown(e, el.id)}
+                        className={mainMode === 'map' && mapMode === 'select' && !isSelected ? "cursor-pointer hover:stroke-red-500 hover:fill-red-500/20 transition-colors pointer-events-auto" : (mainMode === 'map' && mapMode === 'select' ? "cursor-pointer pointer-events-auto" : "pointer-events-none")}
+                      />
+                    );
+                  }
+                })}
+
+                {/* Map Connections (Base Layer) */}
+                {nodes.map(node =>
+                  Object.keys(node.ConnectedNodeDistances || {}).map(targetIdStr => {
+                    const targetId = parseInt(targetIdStr);
+                    const targetNode = nodes.find(n => n.Id === targetId);
+                    if (!targetNode) return null;
+
+                    const isBidirectional = targetNode.ConnectedNodeDistances && (node.Id.toString() in targetNode.ConnectedNodeDistances);
+
+                    let offset = { x: 0, y: 0 };
+                    if (isBidirectional) {
+                      const dx = targetNode.X - node.X;
+                      const dy = targetNode.Y - node.Y;
+                      const length = Math.sqrt(dx * dx + dy * dy);
+                      if (length > 0) {
+                        offset = { x: -dy / length * 5, y: dx / length * 5 };
+                      }
+                    }
+
+                    const { startX, startY, endX, endY } = getLineEndpoints(
+                      node.X + offset.x, node.Y + offset.y,
+                      targetNode.X + offset.x, targetNode.Y + offset.y,
+                      NODE_RADIUS + 2
+                    );
+
+                    const midX = (startX + endX) / 2;
+                    const midY = (startY + endY) / 2;
+                    const distance = node.ConnectedNodeDistances[targetIdStr];
+
+                    return (
+                      <g
+                        key={`map-${node.Id}-${targetId}`}
+                        className={mainMode === 'map' && mapMode === 'select' ? "pointer-events-auto cursor-pointer group" : "pointer-events-none"}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (mainMode === 'map' && mapMode === 'select') {
+                            if (e.shiftKey) {
+                              removeConnection(node.Id, targetId);
+                            } else {
+                              setEditingConnection({ from: node.Id, to: targetId });
+                            }
+                          }
+                        }}
+                      >
+                        <line x1={startX} y1={startY} x2={endX} y2={endY} stroke="rgba(255,255,255,0.01)" strokeWidth="24" />
+                        <line
+                          x1={startX} y1={startY} x2={endX} y2={endY}
+                          stroke={editingConnection?.from === node.Id && editingConnection?.to === targetId ? "#3b82f6" : "#9ca3af"}
+                          strokeWidth={editingConnection?.from === node.Id && editingConnection?.to === targetId ? "3" : "2"}
+                          markerEnd="url(#arrowhead)"
+                          className={mainMode === 'map' && mapMode === 'select' ? "group-hover:stroke-blue-400 group-hover:stroke-[3px] transition-all" : "opacity-60"}
+                        />
+                        <rect
+                          x={midX - 15}
+                          y={midY - 14}
+                          width="30"
+                          height="16"
+                          fill="#1f2937"
+                          rx="4"
+                          className="opacity-80"
+                        />
+                        <text
+                          x={midX}
+                          y={midY - 2}
+                          fill={editingConnection?.from === node.Id && editingConnection?.to === targetId ? "#60a5fa" : "#e5e7eb"}
+                          fontSize="10"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                          className="select-none"
+                        >
+                          {distance}
+                        </text>
+                      </g>
+                    );
+                  })
+                )}
+
+                {/* Active Drawing Line (Map Mode) */}
+                {mainMode === 'map' && mapMode === 'connect' && connectingFrom !== null && (
+                  (() => {
+                    const fromNode = nodes.find(n => n.Id === connectingFrom);
+                    if (!fromNode) return null;
+                    const { startX, startY, endX, endY } = getLineEndpoints(
+                      fromNode.X, fromNode.Y, mousePos.x, mousePos.y, NODE_RADIUS
+                    );
+                    return (
                       <line
                         x1={startX} y1={startY} x2={endX} y2={endY}
-                        stroke={editingConnection?.from === node.Id && editingConnection?.to === targetId ? "#3b82f6" : "#9ca3af"}
-                        strokeWidth={editingConnection?.from === node.Id && editingConnection?.to === targetId ? "3" : "2"}
+                        stroke="#9ca3af" strokeWidth="2" strokeDasharray="5,5"
                         markerEnd="url(#arrowhead)"
-                        className={mainMode === 'map' && mapMode === 'select' ? "group-hover:stroke-blue-400 group-hover:stroke-[3px] transition-all" : "opacity-60"}
                       />
-                      <rect
-                        x={midX - 15}
-                        y={midY - 14}
-                        width="30"
-                        height="16"
-                        fill="#1f2937"
-                        rx="4"
-                        className="opacity-80"
+                    );
+                  })()
+                )}
+
+                {/* Task Orchestration Path (Task Mode) */}
+                {mainMode === 'task' && selectedTemplate && (
+                  selectedTemplate.Stages.map((stage, index) => {
+                    if (index === 0) return null;
+                    const prevStage = selectedTemplate.Stages[index - 1];
+                    const nodeA = nodes.find(n => n.Id === prevStage.TargetNodeId);
+                    const nodeB = nodes.find(n => n.Id === stage.TargetNodeId);
+
+                    if (!nodeA || !nodeB) return null;
+
+                    const { startX, startY, endX, endY } = getLineEndpoints(
+                      nodeA.X, nodeA.Y, nodeB.X, nodeB.Y, NODE_RADIUS + 2
+                    );
+
+                    return (
+                      <line
+                        key={`task-path-${index}`}
+                        x1={startX} y1={startY} x2={endX} y2={endY}
+                        stroke="#3b82f6" strokeWidth="3" strokeDasharray="8,4"
+                        markerEnd="url(#arrowhead-task)"
+                        className="animate-[dash_1s_linear_infinite]"
+                        style={{ animation: 'dash 1s linear infinite' }}
                       />
-                      <text
-                        x={midX}
-                        y={midY - 2}
-                        fill={editingConnection?.from === node.Id && editingConnection?.to === targetId ? "#60a5fa" : "#e5e7eb"}
-                        fontSize="10"
-                        fontWeight="bold"
-                        textAnchor="middle"
-                        className="select-none"
-                      >
-                        {distance}
-                      </text>
-                    </g>
-                  );
-                })
+                    );
+                  })
+                )}
+              </svg>
+
+              {/* Selection Box */}
+              {selectionBox && (
+                <div
+                  className="absolute border border-blue-500 bg-blue-500/20 pointer-events-none z-50"
+                  style={{
+                    left: Math.min(selectionBox.x1, selectionBox.x2),
+                    top: Math.min(selectionBox.y1, selectionBox.y2),
+                    width: Math.abs(selectionBox.x1 - selectionBox.x2),
+                    height: Math.abs(selectionBox.y1 - selectionBox.y2),
+                  }}
+                />
               )}
 
-              {/* Active Drawing Line (Map Mode) */}
-              {mainMode === 'map' && mapMode === 'connect' && connectingFrom !== null && (
-                (() => {
-                  const fromNode = nodes.find(n => n.Id === connectingFrom);
-                  if (!fromNode) return null;
-                  const { startX, startY, endX, endY } = getLineEndpoints(
-                    fromNode.X, fromNode.Y, mousePos.x, mousePos.y, NODE_RADIUS
-                  );
-                  return (
-                    <line
-                      x1={startX} y1={startY} x2={endX} y2={endY}
-                      stroke="#9ca3af" strokeWidth="2" strokeDasharray="5,5"
-                      markerEnd="url(#arrowhead)"
-                    />
-                  );
-                })()
-              )}
+              {/* Nodes Layer */}
+              {nodes.map(node => {
+                const isConnecting = mainMode === 'map' && mapMode === 'connect' && connectingFrom === node.Id;
+                const isConnectTarget = mainMode === 'map' && mapMode === 'connect' && connectingFrom !== null && connectingFrom !== node.Id;
 
-              {/* Task Orchestration Path (Task Mode) */}
-              {mainMode === 'task' && selectedTemplate && (
-                selectedTemplate.Stages.map((stage, index) => {
-                  if (index === 0) return null;
-                  const prevStage = selectedTemplate.Stages[index - 1];
-                  const nodeA = nodes.find(n => n.Id === prevStage.TargetNodeId);
-                  const nodeB = nodes.find(n => n.Id === stage.TargetNodeId);
-                  
-                  if (!nodeA || !nodeB) return null;
+                // Find if node is part of current task
+                const taskStageIndices = mainMode === 'task' && selectedTemplate
+                  ? selectedTemplate.Stages.map((s, i) => s.TargetNodeId === node.Id ? i + 1 : -1).filter(i => i !== -1)
+                  : [];
 
-                  const { startX, startY, endX, endY } = getLineEndpoints(
-                    nodeA.X, nodeA.Y, nodeB.X, nodeB.Y, NODE_RADIUS + 2
-                  );
+                const isHoveredZone = hoveredZoneName === node.ZoneName && node.ZoneName !== '';
 
-                  return (
-                    <line
-                      key={`task-path-${index}`}
-                      x1={startX} y1={startY} x2={endX} y2={endY}
-                      stroke="#3b82f6" strokeWidth="3" strokeDasharray="8,4"
-                      markerEnd="url(#arrowhead-task)"
-                      className="animate-[dash_1s_linear_infinite]"
-                      style={{ animation: 'dash 1s linear infinite' }}
-                    />
-                  );
-                })
-              )}
-            </svg>
+                return (
+                  <div key={node.Id} className="absolute" style={{ left: node.X, top: node.Y }}>
+                    {/* Zone Halo */}
+                    {node.ZoneName && (
+                      <div
+                        className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none transition-all duration-300 ${isHoveredZone ? 'animate-[zoneBreathe_1.5s_ease-in-out_infinite] z-10' : 'z-0'}`}
+                        style={{
+                          width: NODE_RADIUS * 3.5,
+                          height: NODE_RADIUS * 3.5,
+                          backgroundColor: getZoneColor(node.ZoneName, isHoveredZone ? 0.6 : 0.2),
+                          border: `2px dashed ${getZoneColor(node.ZoneName, 0.8)}`,
+                          boxShadow: isHoveredZone ? `0 0 20px ${getZoneColor(node.ZoneName, 0.8)}` : 'none'
+                        }}
+                      />
+                    )}
 
-            {/* Selection Box */}
-            {selectionBox && (
-              <div
-                className="absolute border border-blue-500 bg-blue-500/20 pointer-events-none z-50"
-                style={{
-                  left: Math.min(selectionBox.x1, selectionBox.x2),
-                  top: Math.min(selectionBox.y1, selectionBox.y2),
-                  width: Math.abs(selectionBox.x1 - selectionBox.x2),
-                  height: Math.abs(selectionBox.y1 - selectionBox.y2),
-                }}
-              />
-            )}
+                    {/* Task Sequence Badges */}
+                    {taskStageIndices.length > 0 && (
+                      <div className="absolute -top-6 -right-6 flex gap-1 z-40">
+                        {taskStageIndices.map(seq => (
+                          <div key={seq} className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow-md border border-blue-400">
+                            {seq}
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
-            {/* Nodes Layer */}
-            {nodes.map(node => {
-              const isConnecting = mainMode === 'map' && mapMode === 'connect' && connectingFrom === node.Id;
-              const isConnectTarget = mainMode === 'map' && mapMode === 'connect' && connectingFrom !== null && connectingFrom !== node.Id;
-              
-              // Find if node is part of current task
-              const taskStageIndices = mainMode === 'task' && selectedTemplate 
-                ? selectedTemplate.Stages.map((s, i) => s.TargetNodeId === node.Id ? i + 1 : -1).filter(i => i !== -1)
-                : [];
-
-              const isHoveredZone = hoveredZoneName === node.ZoneName && node.ZoneName !== '';
-
-              return (
-                <div key={node.Id} className="absolute" style={{ left: node.X, top: node.Y }}>
-                  {/* Zone Halo */}
-                  {node.ZoneName && (
-                    <div 
-                      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none transition-all duration-300 ${isHoveredZone ? 'animate-[zoneBreathe_1.5s_ease-in-out_infinite] z-10' : 'z-0'}`}
-                      style={{
-                        width: NODE_RADIUS * 3.5,
-                        height: NODE_RADIUS * 3.5,
-                        backgroundColor: getZoneColor(node.ZoneName, isHoveredZone ? 0.6 : 0.2),
-                        border: `2px dashed ${getZoneColor(node.ZoneName, 0.8)}`,
-                        boxShadow: isHoveredZone ? `0 0 20px ${getZoneColor(node.ZoneName, 0.8)}` : 'none'
-                      }}
-                    />
-                  )}
-
-                  {/* Task Sequence Badges */}
-                  {taskStageIndices.length > 0 && (
-                    <div className="absolute -top-6 -right-6 flex gap-1 z-40">
-                      {taskStageIndices.map(seq => (
-                        <div key={seq} className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow-md border border-blue-400">
-                          {seq}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-xs font-bold shadow-lg transition-transform ${
-                      mainMode === 'map' && isDraggingSelection && selectedNodeIds.includes(node.Id) ? 'scale-110 z-50 cursor-grabbing' : 
-                      mainMode === 'map' ? 'hover:scale-110 z-20 cursor-grab' : 'hover:scale-110 z-20 cursor-pointer'
-                    } ${isConnecting ? 'ring-4 ring-blue-500 ring-opacity-50' : ''}
+                    <div
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-xs font-bold shadow-lg transition-transform ${mainMode === 'map' && isDraggingSelection && selectedNodeIds.includes(node.Id) ? 'scale-110 z-50 cursor-grabbing' :
+                        mainMode === 'map' ? 'hover:scale-110 z-20 cursor-grab' : 'hover:scale-110 z-20 cursor-pointer'
+                        } ${isConnecting ? 'ring-4 ring-blue-500 ring-opacity-50' : ''}
                       ${isConnectTarget ? 'hover:ring-4 hover:ring-green-500 hover:ring-opacity-50' : ''}
                       ${taskStageIndices.length > 0 ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-neutral-900' : ''}
                       ${selectedNodeIds.includes(node.Id) ? 'ring-4 ring-white ring-opacity-80' : ''}
                     `}
-                    style={{
-                      width: NODE_RADIUS * 2,
-                      height: NODE_RADIUS * 2,
-                      backgroundColor: NODE_COLORS[node.NodeType],
-                      color: ['Charging', 'Buffer'].includes(node.NodeType) ? '#000' : '#fff',
-                      border: '2px solid rgba(255,255,255,0.2)'
-                    }}
-                    onMouseDown={(e) => handleNodeMouseDown(e, node.Id)}
-                    onClick={(e) => e.stopPropagation()}
-                    onDoubleClick={(e) => handleNodeDoubleClick(e, node)}
-                  >
-                    {node.Id}
+                      style={{
+                        width: NODE_RADIUS * 2,
+                        height: NODE_RADIUS * 2,
+                        backgroundColor: NODE_COLORS[node.NodeType],
+                        color: ['Charging', 'Buffer'].includes(node.NodeType) ? '#000' : '#fff',
+                        border: '2px solid rgba(255,255,255,0.2)'
+                      }}
+                      onMouseDown={(e) => handleNodeMouseDown(e, node.Id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => handleNodeDoubleClick(e, node)}
+                    >
+                      {node.Id}
+                    </div>
+
+                    {/* Node Label */}
+                    <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 whitespace-nowrap bg-neutral-800/90 px-2 py-0.5 rounded text-[10px] text-neutral-300 pointer-events-none backdrop-blur-sm border border-neutral-700 shadow-sm">
+                      {node.ZoneName}
+                    </div>
                   </div>
-                  
-                  {/* Node Label */}
-                  <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 whitespace-nowrap bg-neutral-800/90 px-2 py-0.5 rounded text-[10px] text-neutral-300 pointer-events-none backdrop-blur-sm border border-neutral-700 shadow-sm">
-                    {node.ZoneName}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
             </div>
           </div>
 
@@ -1193,29 +1190,26 @@ export default function App() {
                       setMapMode('select');
                       setEditingConnection(null);
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                      mapMode === 'select' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${mapMode === 'select' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
+                      }`}
                   >
                     <MousePointer2 size={16} />
                     <span className="text-sm font-medium">选择 / 拖拽</span>
                   </button>
                   <button
                     onClick={() => setMapMode('connect')}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                      mapMode === 'connect' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${mapMode === 'connect' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
+                      }`}
                   >
                     <LinkIcon size={16} />
                     <span className="text-sm font-medium">连线模式</span>
                   </button>
-                  
+
                   <div className={`rounded-md transition-colors border ${mapMode === 'paint_zone' ? 'bg-neutral-700/50 border-neutral-600' : 'border-transparent'}`}>
                     <button
                       onClick={() => setMapMode('paint_zone')}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                        mapMode === 'paint_zone' ? 'text-white' : 'hover:bg-neutral-700/50 text-neutral-400'
-                      }`}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${mapMode === 'paint_zone' ? 'text-white' : 'hover:bg-neutral-700/50 text-neutral-400'
+                        }`}
                     >
                       <Brush size={16} />
                       <span className="text-sm font-medium">管制区刷子</span>
@@ -1257,11 +1251,10 @@ export default function App() {
                           setMapMode('add');
                           setSelectedNodeType(type);
                         }}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-md border transition-all ${
-                          mapMode === 'add' && selectedNodeType === type
-                            ? 'border-blue-500 bg-blue-500/10'
-                            : 'border-neutral-700 hover:bg-neutral-700/50 bg-neutral-800'
-                        }`}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-md border transition-all ${mapMode === 'add' && selectedNodeType === type
+                          ? 'border-blue-500 bg-blue-500/10'
+                          : 'border-neutral-700 hover:bg-neutral-700/50 bg-neutral-800'
+                          }`}
                       >
                         <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: NODE_COLORS[type] }} />
                         <span className="text-sm font-medium text-neutral-300">{type}</span>
@@ -1276,18 +1269,16 @@ export default function App() {
                   </h3>
                   <button
                     onClick={() => setMapMode('draw_line')}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                      mapMode === 'draw_line' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${mapMode === 'draw_line' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
+                      }`}
                   >
                     <Minus size={16} />
                     <span className="text-sm font-medium">画墙 (线段)</span>
                   </button>
                   <button
                     onClick={() => setMapMode('draw_rect')}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                      mapMode === 'draw_rect' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${mapMode === 'draw_rect' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
+                      }`}
                   >
                     <Square size={16} />
                     <span className="text-sm font-medium">画区域 (矩形)</span>
@@ -1321,7 +1312,7 @@ export default function App() {
                 {/* Connection Editing Panel */}
                 {mainMode === 'map' && mapMode === 'select' && editingConnection && (
                   <div className="p-3 bg-neutral-800 border border-blue-500/50 rounded-lg shadow-lg relative">
-                    <button 
+                    <button
                       onClick={() => setEditingConnection(null)}
                       className="absolute top-2 right-2 text-neutral-400 hover:text-white"
                     >
@@ -1483,9 +1474,8 @@ export default function App() {
                       <button
                         key={t.TemplateId}
                         onClick={() => setSelectedTemplateId(t.TemplateId)}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded text-left transition-colors ${
-                          selectedTemplateId === t.TemplateId ? 'bg-blue-600/20 border border-blue-500/50 text-white' : 'hover:bg-neutral-700 text-neutral-400 border border-transparent'
-                        }`}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded text-left transition-colors ${selectedTemplateId === t.TemplateId ? 'bg-blue-600/20 border border-blue-500/50 text-white' : 'hover:bg-neutral-700 text-neutral-400 border border-transparent'
+                          }`}
                       >
                         <span className="text-sm font-medium truncate pr-2">{t.TemplateName}</span>
                         <ChevronRight size={14} className={selectedTemplateId === t.TemplateId ? 'text-blue-400' : 'text-neutral-600'} />
@@ -1533,10 +1523,10 @@ export default function App() {
                           共 {selectedTemplate.Stages.length} 步
                         </span>
                       </div>
-                      
+
                       {selectedTemplate.Stages.length === 0 ? (
                         <div className="text-xs text-neutral-500 text-center py-8 border border-dashed border-neutral-700 rounded-lg">
-                          请在左侧地图上依次点击节点<br/>来编排任务路径
+                          请在左侧地图上依次点击节点<br />来编排任务路径
                         </div>
                       ) : (
                         <div className="space-y-3 relative before:absolute before:inset-y-0 before:left-3.5 before:w-px before:bg-neutral-700">
@@ -1571,7 +1561,7 @@ export default function App() {
                                     <option value="static">指定点位 (Static)</option>
                                     <option value="dynamic">动态点位 (Dynamic)</option>
                                   </select>
-                                  
+
                                   {stage.TargetNodeId !== 0 && (
                                     <>
                                       <label className="text-[10px] text-neutral-500 ml-2">点位 ID:</label>
@@ -1592,9 +1582,9 @@ export default function App() {
                                       <label className="block text-[10px] text-blue-400 mb-0.5">动态点位类型</label>
                                       <select
                                         value={stage.DynamicTargetType || 'Unload'}
-                                        onChange={e => updateStage(selectedTemplate.TemplateId, index, { 
+                                        onChange={e => updateStage(selectedTemplate.TemplateId, index, {
                                           DynamicTargetType: e.target.value as NodeType,
-                                          CandidateNodeIds: [] 
+                                          CandidateNodeIds: []
                                         })}
                                         className="w-full bg-neutral-900 border border-neutral-700 rounded px-1 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
                                       >
@@ -1616,16 +1606,15 @@ export default function App() {
                                                 key={n.Id}
                                                 onClick={() => {
                                                   const current = stage.CandidateNodeIds || [];
-                                                  const next = isSelected 
+                                                  const next = isSelected
                                                     ? current.filter(id => id !== n.Id)
                                                     : [...current, n.Id];
                                                   updateStage(selectedTemplate.TemplateId, index, { CandidateNodeIds: next });
                                                 }}
-                                                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${
-                                                  isSelected 
-                                                    ? 'bg-blue-500 text-white border border-blue-400' 
-                                                    : 'bg-neutral-800 text-neutral-400 border border-neutral-600 hover:bg-neutral-700'
-                                                }`}
+                                                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${isSelected
+                                                  ? 'bg-blue-500 text-white border border-blue-400'
+                                                  : 'bg-neutral-800 text-neutral-400 border border-neutral-600 hover:bg-neutral-700'
+                                                  }`}
                                               >
                                                 {n.Id} {n.ZoneName ? `(${n.ZoneName})` : ''}
                                               </button>
@@ -1636,7 +1625,7 @@ export default function App() {
                                     </div>
                                   </div>
                                 )}
-                                
+
                                 <div>
                                   <label className="block text-[10px] text-neutral-500 mb-0.5">阶段名称</label>
                                   <input
@@ -1646,7 +1635,7 @@ export default function App() {
                                     className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
                                   />
                                 </div>
-                                
+
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
                                     <label className="block text-[10px] text-neutral-500 mb-0.5">动作指令</label>
@@ -1677,7 +1666,7 @@ export default function App() {
                           ))}
                         </div>
                       )}
-                      
+
                       <div className="mt-4 pt-4 border-t border-neutral-700/50">
                         <button
                           onClick={() => {
@@ -1689,8 +1678,8 @@ export default function App() {
                               DynamicTargetType: 'Unload',
                               CandidateNodeIds: []
                             };
-                            setTemplates(templates.map(t => 
-                              t.TemplateId === selectedTemplate.TemplateId 
+                            setTemplates(templates.map(t =>
+                              t.TemplateId === selectedTemplate.TemplateId
                                 ? { ...t, Stages: [...t.Stages, newStage] }
                                 : t
                             ));
@@ -1705,7 +1694,7 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="flex-1 flex items-center justify-center p-6 text-center text-neutral-500 text-sm">
-                    请在上方选择一个任务模板，<br/>或点击 "+" 新建
+                    请在上方选择一个任务模板，<br />或点击 "+" 新建
                   </div>
                 )}
               </div>
@@ -1726,7 +1715,7 @@ export default function App() {
                 <X size={16} />
               </button>
             </div>
-            
+
             <div className="p-4 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-neutral-400 mb-1">区域名称 (Zone Name)</label>
@@ -1743,7 +1732,7 @@ export default function App() {
                   }}
                 />
               </div>
-              
+
               <div className="pt-2 flex justify-between items-center">
                 <button
                   onClick={() => deleteNode(editingNodeId)}
@@ -1751,7 +1740,7 @@ export default function App() {
                 >
                   <Trash2 size={14} /> 删除节点
                 </button>
-                
+
                 <div className="flex gap-2">
                   <button
                     onClick={() => setEditingNodeId(null)}
@@ -1778,7 +1767,8 @@ export default function App() {
           <option key={zone} value={zone} />
         ))}
       </datalist>
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes dash {
           to {
             stroke-dashoffset: -12;

@@ -8,6 +8,7 @@
              xmlns:ctrls="clr-namespace:BasicRegionNavigation.Controls" 
              xmlns:con="clr-namespace:BasicRegionNavigation.Controls" 
              xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              prism:ViewModelLocator.AutoWireViewModel="True">
     <UserControl.Resources>
         <ResourceDictionary>
@@ -117,8 +118,18 @@
             </StackPanel>
         </StackPanel>
 
-        <!-- 机器人模拟区域及微型路网 -->
+        <!-- Web 容器，加载 agv_html-main 项目 -->
+        <wv2:WebView2 x:Name="ReactAppWebView" 
+                      Grid.Row="1" Grid.Column="0"
+                      Source="http://localhost:3000" 
+                      Visibility="Visible"
+                      HorizontalAlignment="Stretch" 
+                      VerticalAlignment="Stretch" 
+                      Margin="10"/>
+
+        <!-- 只有在非 Web 模式下才显示的旧版地图（此处隐藏） -->
         <ScrollViewer x:Name="MapScrollViewer" Grid.Row="1" Grid.Column="0" Margin="10" 
+                      Visibility="Collapsed"
                       Background="#F0F0F0"
                       HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                       PreviewMouseWheel="MapScrollViewer_PreviewMouseWheel"
@@ -148,14 +159,14 @@
                             <Polygon Points="-6,-6 10,0 -6,6" Fill="#95A5A6" 
                                      Visibility="{Binding IsOneWay, Converter={StaticResource BoolToVis}}"
                                      Canvas.Left="{Binding CenterX}" Canvas.Top="{Binding CenterY}">
-                                <Polygon.RenderTransform>
-                                    <RotateTransform Angle="{Binding Angle}" />
-                                </Polygon.RenderTransform>
-                            </Polygon>
-                            </Canvas>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                                 <Polygon.RenderTransform>
+                                     <RotateTransform Angle="{Binding Angle}" />
+                                 </Polygon.RenderTransform>
+                             </Polygon>
+                             </Canvas>
+                     </DataTemplate>
+                 </ItemsControl.ItemTemplate>
+             </ItemsControl>
 
             <!-- 渲染路网节点 -->
             <ItemsControl ItemsSource="{Binding MapNodes}">
