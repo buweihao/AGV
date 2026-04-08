@@ -43,7 +43,12 @@ namespace BasicRegionNavigation.ViewModels
     {
         private List<BasicRegionNavigation.Core.Interfaces.IRobot> _robots;
         private BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher _taskDispatcher;
+        public static ITrafficController GlobalTrafficController { get; private set; }
         private ITrafficController _trafficController;
+        public static ObservableCollection<IRobot> GlobalRobots { get; private set; }
+        
+        public static ObservableCollection<LogicNode> GlobalMapNodes { get; private set; }
+        public static ObservableCollection<MapEdgeViewModel> GlobalMapEdges { get; private set; }
 
         [ObservableProperty]
         private int _currentNode;
@@ -182,6 +187,8 @@ namespace BasicRegionNavigation.ViewModels
 
             _robots = new List<BasicRegionNavigation.Core.Interfaces.IRobot>();
             RobotList = new ObservableCollection<IRobot>(_robots);
+            GlobalRobots = RobotList;
+            GlobalTrafficController = _trafficController;
 
             // 实例化 Dispatcher
             _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService, _trafficController);
@@ -259,6 +266,8 @@ namespace BasicRegionNavigation.ViewModels
 
                         ComputeDisplayLabels();
                         GenerateEdges(MapNodes);
+                        GlobalMapNodes = MapNodes;
+                        GlobalMapEdges = MapEdges;
                         Serilog.Log.Information($"[系统配置] 加载成功. 节点:{MapNodes.Count}, 模板:{TaskTemplates.Count}");
                         return;
                     }
@@ -278,6 +287,8 @@ namespace BasicRegionNavigation.ViewModels
             TaskTemplates = new ObservableCollection<TaskTemplate>();
             ComputeDisplayLabels();
             GenerateEdges(MapNodes);
+            GlobalMapNodes = MapNodes;
+            GlobalMapEdges = MapEdges;
         }
 
         private void ComputeDisplayLabels()

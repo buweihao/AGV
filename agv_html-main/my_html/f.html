@@ -1,0 +1,544 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { 
+  Battery, BatteryMedium, BatteryWarning, 
+  Map as MapIcon, Crosshair, Navigation, 
+  Play, Pause, Square, RotateCcw, AlertTriangle,
+  Terminal, Send, Activity, Lock, Cpu, Monitor,
+  ZoomIn, ZoomOut, Maximize, Layers, Wifi, CheckCircle2, Search,
+  ClipboardList, ListTodo, GitMerge, Clock, Truck, ChevronRight, Filter, AlignLeft
+} from 'lucide-react';
+
+// === 模拟基础数据源 ===
+const MOCK_STATIONS = {
+  'LM10': { x: 200, y: 300 },
+  'LM25': { x: 600, y: 200 },
+  'LM44': { x: 1200, y: 500 },
+  'LM55': { x: 1600, y: 800 },
+  'CP01': { x: 100, y: 900 }
+};
+
+const generateMockAGVs = () => {
+  return Array.from({ length: 50 }, (_, i) => {
+    const id = i + 1;
+    const isCharging = i % 8 === 0;
+    const isError = i % 15 === 0;
+    const isIdle = i % 4 === 0 && !isCharging && !isError;
+    return {
+      id: `AGV-${id.toString().padStart(3, '0')}`,
+      status: isError ? '异常报警' : isCharging ? '充电中' : isIdle ? '待命' : '正在导航',
+      battery: isCharging ? Math.floor(Math.random() * 40) + 10 : Math.floor(Math.random() * 80) + 20,
+      isCharging: isCharging,
+      currentTask: isIdle ? '无任务' : isCharging ? '前往充电桩' : `搬运物料至 LM${Math.floor(Math.random()*100)}`,
+      heldLocks: i % 5 === 0 && !isIdle ? [`区段${String.fromCharCode(65 + Math.floor(Math.random() * 5))}`] : [],
+      x: Math.random() * 1400 + 100,
+      y: Math.random() * 800 + 100,
+      angle: Math.random() * Math.PI * 2,
+      speed: isIdle || isCharging || isError ? 0 : (Math.random() * 1.2 + 0.3),
+      liftAngle: i % 3 === 0 ? 90 : 0,
+      logs: [
+        { time: new Date(Date.now() - 5000).toLocaleTimeString(), msg: `[SYS] 车辆心跳正常` },
+        { time: new Date().toLocaleTimeString(), msg: `[CMD] 保持寄存器同步完成` }
+      ]
+    };
+  });
+};
+
+const generateMockTasks = (agvs) => {
+  const stations = Object.keys(MOCK_STATIONS);
+  return Array.from({ length: 20 }, (_, i) => {
+    const id = 1000 + i;
+    const statusType = i % 5; // 0: 待分配, 1,2: 执行中, 3: 已完成, 4: 异常
+    const source = stations[i % stations.length];
+    const dest = stations[(i + 2) % stations.length];
+    
+    let status = '执行中';
+    let progress = Math.floor(Math.random() * 80) + 10;
+    let agvId = agvs[i % agvs.length].id;
+
+    if (statusType === 0) { status = '待分配'; progress = 0; agvId = null; }
+    else if (statusType === 3) { status = '已完成'; progress = 100; }
+    else if (statusType === 4) { status = '任务异常'; progress = Math.floor(Math.random() * 50); }
+
+    return {
+      id: `TASK-${id}`,
+      type: i % 3 === 0 ? '空车调拨' : '物料搬运',
+      status,
+      priority: i % 7 === 0 ? '紧急' : '普通',
+      source,
+      dest,
+      agvId,
+      progress,
+      createTime: new Date(Date.now() - Math.random() * 10000000).toLocaleTimeString(),
+    };
+  });
+};
+
+const AgvSystemDashboard = () => {
+  // === 全局视图控制 ===
+  const [currentView, setCurrentView] = useState('global'); // 'single' | 'global'
+  const screenRef = useRef(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (screenRef.current) {
+        const parent = screenRef.current.parentElement;
+        const { width, height } = parent.getBoundingClientRect();
+        const scaleX = width / 1920;
+        const scaleY = height / 1080;
+        setScale(Math.min(scaleX, scaleY) * 0.98);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // === 系统数据 ===
+  const [agvs, setAgvs] = useState(generateMockAGVs());
+  const [tasks, setTasks] = useState([]);
+  const [globalLogs, setGlobalLogs] = useState([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // 初始化任务和全局日志
+  useEffect(() => {
+    setTasks(generateMockTasks(agvs));
+    setGlobalLogs([
+      { time: new Date(Date.now() - 60000).toLocaleTimeString(), level: 'INFO', msg: '[调度引擎] 寻路算法切换至 A* 动态避障模式' },
+      { time: new Date(Date.now() - 30000).toLocaleTimeString(), level: 'WARN', msg: '[交通管制] 区段 D 检测到拥堵，已触发死锁预防机制' },
+      { time: new Date().toLocaleTimeString(), level: 'INFO', msg: '[任务中枢] 收到 MES 系统下发的新批次搬运任务 5 条' },
+    ]);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, [agvs]);
+
+  // === 单车视图状态 ===
+  const [selectedAgvId, setSelectedAgvId] = useState(agvs[0].id);
+  const [debugCmd, setDebugCmd] = useState({ type: '0x', address: '00004', value: '1' });
+  const selectedAgv = useMemo(() => agvs.find(a => a.id === selectedAgvId) || agvs[0], [agvs, selectedAgvId]);
+
+  // === 全局视图状态 ===
+  const [taskFilter, setTaskFilter] = useState('全部');
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
+  
+  // 初始化选中的任务
+  useEffect(() => {
+    if (tasks.length > 0 && !selectedTaskId) {
+      setSelectedTaskId(tasks[0].id);
+    }
+  }, [tasks]);
+
+  const selectedTask = useMemo(() => tasks.find(t => t.id === selectedTaskId) || tasks[0], [tasks, selectedTaskId]);
+  const filteredTasks = useMemo(() => {
+    if (taskFilter === '全部') return tasks;
+    if (taskFilter === '异常') return tasks.filter(t => t.status === '任务异常');
+    return tasks.filter(t => t.status.includes(taskFilter));
+  }, [tasks, taskFilter]);
+
+  // === 地图交互逻辑 ===
+  const [mapZoom, setMapZoom] = useState(0.8);
+  const [mapPan, setMapPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const handleMapWheel = (e) => {
+    const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
+    setMapZoom(prev => Math.max(0.2, Math.min(prev + zoomDelta, 3)));
+  };
+  const handleMapDragStart = (e) => { setIsDragging(true); setDragStart({ x: e.clientX - mapPan.x, y: e.clientY - mapPan.y }); };
+  const handleMapDrag = (e) => { if (isDragging) setMapPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); };
+  const handleMapDragEnd = () => setIsDragging(false);
+  const resetMap = () => { setMapZoom(0.8); setMapPan({ x: 0, y: 0 }); };
+
+  // 公用渲染图标
+  const renderBatteryIcon = (battery) => {
+    if (battery > 60) return <Battery className="text-emerald-400 w-full h-full" />;
+    if (battery > 20) return <BatteryMedium className="text-amber-400 w-full h-full" />;
+    return <BatteryWarning className="text-rose-500 w-full h-full animate-pulse" />;
+  };
+
+  const getStatusColor = (status) => {
+    if (status.includes('异常') || status.includes('失败')) return 'text-rose-400 border-rose-500 bg-rose-900/30';
+    if (status.includes('待分配') || status.includes('暂停')) return 'text-amber-400 border-amber-500 bg-amber-900/30';
+    if (status.includes('完成')) return 'text-slate-400 border-slate-600 bg-slate-800/50';
+    return 'text-emerald-400 border-emerald-500 bg-emerald-900/30';
+  };
+
+  // ==================== 渲染：单车监控视图 (保留原功能) ====================
+  const renderSingleView = () => (
+    <div className="flex-1 flex overflow-hidden">
+      {/* 单车左侧 */}
+      <div className="w-[440px] flex flex-col bg-slate-900/80 border-r border-slate-800 shadow-xl shrink-0 z-10">
+        <div className="p-6 border-b border-slate-800 bg-slate-950/50">
+          <h2 className="text-lg font-bold text-slate-400 mb-3 flex items-center gap-2"><Search className="w-5 h-5" /> 目标车辆定位</h2>
+          <select 
+            className="w-full bg-slate-800 border-2 border-slate-700 text-xl text-cyan-300 rounded-xl px-4 py-4 focus:outline-none focus:border-cyan-500 cursor-pointer shadow-inner"
+            value={selectedAgvId} onChange={(e) => setSelectedAgvId(e.target.value)}
+          >
+            {agvs.map(agv => (<option key={agv.id} value={agv.id}>{agv.id} - [{agv.status}] - 电量 {agv.battery}%</option>))}
+          </select>
+        </div>
+        <div className="p-6 flex-1 overflow-y-auto flex flex-col gap-6">
+          {/* 核心状态 */}
+          <div>
+            <div className="flex items-center gap-2 mb-4"><Activity className="w-6 h-6 text-cyan-400" /><h2 className="text-xl font-bold text-slate-100">单车核心状态</h2></div>
+            <div className="bg-slate-800/80 p-6 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden">
+              <div className={`absolute top-0 left-0 w-1 h-full ${selectedAgv.status === '异常报警' ? 'bg-rose-500' : selectedAgv.status.includes('暂停') ? 'bg-amber-400' : 'bg-emerald-400'}`}></div>
+              <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                <span className="text-4xl font-black text-white tracking-wider font-mono">{selectedAgv.id}</span>
+                <div className={`px-4 py-2 rounded-full border ${getStatusColor(selectedAgv.status)} font-bold text-lg shadow-sm`}>{selectedAgv.status}</div>
+              </div>
+              <div className="flex items-center justify-between mb-6 bg-slate-900 p-4 rounded-xl">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10">{renderBatteryIcon(selectedAgv.battery)}</div>
+                  <div><div className="text-slate-400 mb-1">动力电池电量</div><div className="text-3xl font-bold font-mono text-slate-100">{selectedAgv.battery}%</div></div>
+                </div>
+                {selectedAgv.isCharging && <span className="bg-emerald-600 text-white px-3 py-1 rounded text-sm font-bold animate-pulse">充电中</span>}
+              </div>
+              <div className="space-y-4">
+                <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                  <div className="text-sm text-slate-400 mb-2 flex items-center gap-2"><Navigation className="w-4 h-4"/> 正在执行任务</div>
+                  <div className="text-lg font-bold text-cyan-300 truncate">{selectedAgv.currentTask}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* 遥测数据 */}
+          <div className="flex-1 flex flex-col">
+            <div className="flex items-center gap-2 mb-4"><Cpu className="w-6 h-6 text-indigo-400" /><h2 className="text-xl font-bold text-slate-100">实时遥测数据</h2></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-800/80 p-5 rounded-xl border border-slate-700"><div className="text-sm text-slate-400 mb-1">X (m)</div><div className="text-2xl font-mono text-slate-100">{(selectedAgv.x / 100).toFixed(3)}</div></div>
+              <div className="bg-slate-800/80 p-5 rounded-xl border border-slate-700"><div className="text-sm text-slate-400 mb-1">Y (m)</div><div className="text-2xl font-mono text-slate-100">{(selectedAgv.y / 100).toFixed(3)}</div></div>
+              <div className="bg-slate-800/80 p-5 rounded-xl border border-slate-700"><div className="text-sm text-slate-400 mb-1">航向角 / RAD</div><div className="text-2xl font-mono text-slate-100">{selectedAgv.angle.toFixed(3)}</div></div>
+              <div className="bg-slate-800/80 p-5 rounded-xl border border-slate-700"><div className="text-sm text-slate-400 mb-1">速度 (m/s)</div><div className="text-2xl font-mono text-slate-100">{selectedAgv.speed.toFixed(2)}</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* 单车右侧 (原样保留快捷控制等...) */}
+      <div className="w-[440px] flex flex-col bg-slate-900/80 border-l border-slate-800 shadow-xl shrink-0 z-10 p-6">
+        <div className="flex items-center gap-2 mb-4"><Crosshair className="w-6 h-6 text-rose-400" /><h2 className="text-xl font-bold text-slate-100">车辆快捷控制</h2></div>
+        <div className="grid grid-cols-2 gap-4">
+          {['恢复运行', '暂停任务', '终止取消', '复位清错'].map(action => (
+            <button key={action} className="p-6 bg-slate-800/80 hover:bg-slate-700 border border-slate-600 rounded-2xl transition-all shadow-md flex flex-col items-center gap-2">
+              <span className="text-lg font-bold text-slate-200">{action}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-col flex-1 overflow-hidden mt-8">
+          <div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><Terminal className="w-6 h-6 text-amber-500" /><h2 className="text-xl font-bold text-slate-100">协议调试口</h2></div></div>
+          <div className="flex-1 bg-black border border-slate-700 rounded-xl p-3 flex flex-col font-mono text-sm overflow-hidden shadow-inner">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-2 mt-2">
+              {selectedAgv.logs.map((log, idx) => (
+                <div key={idx} className="break-all border-b border-slate-900 pb-1">
+                  <span className="text-slate-500 mr-2">[{log.time}]</span><span className="text-emerald-400">{log.msg}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ==================== 渲染：全局调度视图 (全新需求) ====================
+  const renderGlobalView = () => (
+    <div className="flex-1 flex overflow-hidden">
+      {/* === 左侧：全局任务列表 === */}
+      <div className="w-[480px] flex flex-col bg-slate-900/90 border-r border-slate-800 shadow-xl shrink-0 z-10">
+        <div className="p-5 border-b border-slate-800 bg-slate-950/80 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2"><ListTodo className="w-6 h-6 text-indigo-400"/> 调度任务中心</h2>
+            <div className="bg-slate-800 text-xs px-3 py-1 rounded-full text-slate-300 border border-slate-700">共 {tasks.length} 单</div>
+          </div>
+          {/* 过滤器 */}
+          <div className="flex gap-2 bg-slate-900 p-1 rounded-lg border border-slate-700">
+            {['全部', '执行中', '待分配', '异常', '完成'].map(f => (
+              <button 
+                key={f} onClick={() => setTaskFilter(f)}
+                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${taskFilter === f ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* 任务流列表 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {filteredTasks.map(task => {
+            const isSelected = selectedTaskId === task.id;
+            return (
+              <div 
+                key={task.id} onClick={() => setSelectedTaskId(task.id)}
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-900/20 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : 'border-slate-700 bg-slate-800/50 hover:border-slate-500'}`}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold font-mono text-slate-200">{task.id}</span>
+                    {task.priority === '紧急' && <span className="bg-rose-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">急</span>}
+                  </div>
+                  <div className={`text-xs px-2 py-1 rounded border ${getStatusColor(task.status)}`}>{task.status}</div>
+                </div>
+                
+                <div className="flex items-center justify-between text-sm text-slate-300 mb-3 bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
+                  <div className="flex items-center gap-1"><MapIcon className="w-4 h-4 text-slate-500"/> {task.source}</div>
+                  <ChevronRight className="w-4 h-4 text-slate-600" />
+                  <div className="flex items-center gap-1 text-cyan-400 font-medium"><MapIcon className="w-4 h-4"/> {task.dest}</div>
+                </div>
+
+                <div className="flex justify-between items-center mt-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                    <Truck className="w-4 h-4" /> {task.agvId ? <span className="text-emerald-400">{task.agvId}</span> : '暂未指派'}
+                  </div>
+                  <div className="w-24 bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                    <div className={`h-full ${task.status.includes('异常') ? 'bg-rose-500' : 'bg-indigo-500'}`} style={{width: `${task.progress}%`}}></div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {filteredTasks.length === 0 && (
+            <div className="text-center py-10 text-slate-500 flex flex-col items-center gap-2">
+              <ClipboardList className="w-10 h-10 opacity-50"/>
+              <span>暂无符合条件的任务</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* === 右侧：任务细则与全局系统日志 === */}
+      <div className="w-[480px] flex flex-col bg-slate-900/90 border-l border-slate-800 shadow-xl shrink-0 z-10">
+        
+        {/* 上半部分：任务执行细则详情 */}
+        <div className="h-[55%] border-b border-slate-800 p-6 flex flex-col overflow-y-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2"><GitMerge className="w-6 h-6 text-cyan-400" /><h2 className="text-xl font-bold text-slate-100">任务执行细则</h2></div>
+            {selectedTask && <div className={`px-3 py-1 rounded text-sm font-bold border ${getStatusColor(selectedTask.status)}`}>{selectedTask.status}</div>}
+          </div>
+
+          {selectedTask ? (
+            <div className="flex flex-col gap-6">
+              {/* 基础信息卡片 */}
+              <div className="bg-slate-800/80 p-5 rounded-xl border border-slate-700 shadow-inner">
+                <div className="flex justify-between items-end border-b border-slate-700 pb-3 mb-4">
+                  <div>
+                    <div className="text-sm text-slate-400 mb-1">任务编号</div>
+                    <div className="text-3xl font-mono font-black text-white">{selectedTask.id}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-slate-400 mb-1">业务类型</div>
+                    <div className="text-lg text-indigo-300 font-bold">{selectedTask.type}</div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div><div className="text-xs text-slate-500 mb-1">创建时间</div><div className="text-sm font-mono text-slate-300">{selectedTask.createTime}</div></div>
+                  <div><div className="text-xs text-slate-500 mb-1">优先级</div><div className={`text-sm font-bold ${selectedTask.priority==='紧急'?'text-rose-400':'text-emerald-400'}`}>{selectedTask.priority}</div></div>
+                  <div className="col-span-2">
+                    <div className="text-xs text-slate-500 mb-1">指派执行单元</div>
+                    {selectedTask.agvId ? (
+                      <div className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700">
+                        <span className="font-mono text-emerald-400 font-bold flex items-center gap-2"><Truck className="w-4 h-4"/> {selectedTask.agvId}</span>
+                        <span className="text-xs text-slate-400">电量: 良好</span>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-amber-500 bg-amber-900/20 p-2 rounded border border-amber-900/50">系统正在匹配最优空闲车辆...</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 生命周期时间轴 */}
+              <div>
+                <h3 className="text-sm font-bold text-slate-400 mb-4 flex items-center gap-2"><Clock className="w-4 h-4"/> 生命周期跟踪</h3>
+                <div className="relative pl-4 space-y-6 before:absolute before:inset-0 before:ml-[21px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-700 before:to-transparent">
+                  <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-slate-900 bg-emerald-500 text-slate-900 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow"><CheckCircle2 className="w-4 h-4"/></div>
+                    <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-slate-800 p-3 rounded-lg border border-slate-700">
+                      <div className="text-emerald-400 font-bold text-sm mb-1">任务下发系统</div>
+                      <div className="text-xs text-slate-500 font-mono">{selectedTask.createTime}</div>
+                    </div>
+                  </div>
+                  <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div className={`flex items-center justify-center w-6 h-6 rounded-full border-2 border-slate-900 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow ${selectedTask.agvId ? 'bg-emerald-500 text-slate-900' : 'bg-slate-700'}`}>{selectedTask.agvId && <CheckCircle2 className="w-4 h-4"/>}</div>
+                    <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-slate-800 p-3 rounded-lg border border-slate-700">
+                      <div className={`${selectedTask.agvId ? 'text-emerald-400' : 'text-slate-400'} font-bold text-sm mb-1`}>调度引擎指派车辆</div>
+                      <div className="text-xs text-slate-500 font-mono">{selectedTask.agvId ? `已指派 ${selectedTask.agvId}` : '等待算法分配'}</div>
+                    </div>
+                  </div>
+                  <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div className={`flex items-center justify-center w-6 h-6 rounded-full border-2 border-slate-900 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow ${selectedTask.progress > 0 ? 'bg-cyan-500 animate-pulse' : 'bg-slate-700'}`}></div>
+                    <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] bg-slate-800 p-3 rounded-lg border border-slate-700">
+                      <div className={`${selectedTask.progress > 0 ? 'text-cyan-400' : 'text-slate-400'} font-bold text-sm mb-1`}>导航前往取货点</div>
+                      <div className="text-xs text-slate-500 font-mono">目标点: {selectedTask.source}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-slate-500">请在左侧选择一个任务以查看细则</div>
+          )}
+        </div>
+
+        {/* 下半部分：全局系统日志框 */}
+        <div className="h-[45%] flex flex-col p-5 overflow-hidden">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2"><AlignLeft className="w-5 h-5 text-amber-500" /><h2 className="text-lg font-bold text-slate-100">调度系统全局日志</h2></div>
+            <button className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded border border-slate-600 transition-colors">导出日志</button>
+          </div>
+          <div className="flex-1 bg-black border border-slate-700 rounded-xl p-4 flex flex-col font-mono text-[13px] overflow-hidden shadow-inner relative">
+            <div className="absolute top-0 w-full h-4 bg-gradient-to-b from-black to-transparent z-10"></div>
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-2 mt-1">
+              {globalLogs.map((log, idx) => (
+                <div key={idx} className="break-all border-b border-slate-900/80 pb-2">
+                  <span className="text-slate-600 mr-2">[{log.time}]</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[11px] font-bold mr-2 ${log.level==='WARN'?'bg-amber-900/50 text-amber-500 border border-amber-800': log.level==='ERROR'?'bg-rose-900/50 text-rose-500 border border-rose-800':'bg-cyan-900/30 text-cyan-500 border border-cyan-800/50'}`}>{log.level}</span>
+                  <span className="text-slate-300 leading-relaxed">{log.msg}</span>
+                </div>
+              ))}
+              {/* 模拟最新的一条跳动光标 */}
+              <div className="animate-pulse w-2 h-4 bg-slate-500 mt-2"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen w-full bg-gradient-to-b from-slate-700 to-slate-900 items-center justify-center overflow-hidden font-sans">
+      <div className="relative flex flex-col items-center justify-center w-full h-full p-4" ref={screenRef}>
+        
+        {/* 屏幕黑边框 */}
+        <div className="bg-black p-2 rounded-[20px] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-slate-800 relative z-10">
+          {/* 内屏 1920x1080 */}
+          <div className="overflow-hidden bg-slate-900 relative rounded-lg flex flex-col" style={{ width: 1920, height: 1080, transform: `scale(${scale})`, transformOrigin: 'center center' }}>
+            
+            {/* === 顶部全局导航栏 === */}
+            <div className="h-[80px] bg-slate-950 border-b border-slate-800 flex items-center justify-between px-8 shrink-0 shadow-md z-20">
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-4 border-r border-slate-800 pr-8">
+                  <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.5)]">
+                    <Monitor className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-wider text-slate-100">Intelligent AGV Scheduling</h1>
+                    <div className="text-sm text-indigo-400 font-medium tracking-widest">企业级集群调度控制中心 v4.0</div>
+                  </div>
+                </div>
+
+                {/* 视图切换 Tabs */}
+                <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
+                  <button 
+                    onClick={() => setCurrentView('single')}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-lg font-bold transition-all ${currentView === 'single' ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                  >
+                    <Crosshair className="w-5 h-5"/> 单车监控面板
+                  </button>
+                  <button 
+                    onClick={() => setCurrentView('global')}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-lg font-bold transition-all ${currentView === 'global' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                  >
+                    <Layers className="w-5 h-5"/> 全局任务调度
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-6 bg-slate-900 px-6 py-2 rounded-full border border-slate-800">
+                  <div className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-emerald-500"/> <span className="text-lg">在线: {agvs.length}</span></div>
+                  <div className="flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-rose-500"/> <span className="text-lg">报警: {agvs.filter(a => a.status === '异常报警').length}</span></div>
+                </div>
+                <div className="text-2xl font-mono font-bold tracking-widest text-slate-300">
+                  {currentTime.toLocaleTimeString()}
+                </div>
+              </div>
+            </div>
+
+            {/* === 动态渲染主体视图 === */}
+            <div className="flex-1 flex overflow-hidden relative">
+              
+              {/* 公共中心地图引擎 (置于底层，两侧悬浮面板覆盖) */}
+              <div className="absolute inset-0 bg-slate-950 overflow-hidden flex flex-col z-0">
+                <div className="absolute top-6 left-6 z-20 flex gap-4">
+                  <div className="bg-slate-900/90 backdrop-blur px-6 py-3 rounded-xl border border-slate-700 flex items-center gap-3 shadow-lg">
+                    <MapIcon className="w-6 h-6 text-indigo-400" />
+                    <span className="text-lg font-bold">总装二车间_主图_V4</span>
+                  </div>
+                </div>
+                <div className="absolute top-6 right-6 z-20 flex flex-col gap-2 bg-slate-900/90 backdrop-blur p-2 rounded-xl border border-slate-700 shadow-lg">
+                  <button onClick={() => setMapZoom(z => Math.min(z + 0.2, 3))} className="p-3 hover:bg-slate-700 rounded-lg text-slate-300"><ZoomIn className="w-6 h-6"/></button>
+                  <button onClick={resetMap} className="p-3 hover:bg-slate-700 rounded-lg text-slate-300 border-y border-slate-700"><Maximize className="w-6 h-6"/></button>
+                  <button onClick={() => setMapZoom(z => Math.max(z - 0.2, 0.2))} className="p-3 hover:bg-slate-700 rounded-lg text-slate-300"><ZoomOut className="w-6 h-6"/></button>
+                </div>
+
+                {/* 地图交互区 */}
+                <div className="w-full h-full cursor-grab active:cursor-grabbing relative" onWheel={handleMapWheel} onMouseDown={handleMapDragStart} onMouseMove={handleMapDrag} onMouseUp={handleMapDragEnd} onMouseLeave={handleMapDragEnd}>
+                  <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: 'radial-gradient(circle, #6366f1 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
+                  <div className="absolute top-1/2 left-1/2 w-[2000px] h-[1500px] border-4 border-slate-800/50 bg-slate-900/40" style={{ transform: `translate(calc(-50% + ${mapPan.x}px), calc(-50% + ${mapPan.y}px)) scale(${mapZoom})`, transformOrigin: 'center' }}>
+                    
+                    {/* 背景元素 */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                      <rect x="200" y="200" width="400" height="150" fill="#1e293b" stroke="#334155" strokeWidth="4" opacity="0.5"/>
+                      <rect x="200" y="450" width="400" height="150" fill="#1e293b" stroke="#334155" strokeWidth="4" opacity="0.5"/>
+                      
+                      {/* 如果是全局调度视角，绘制选中任务的规划路线 */}
+                      {currentView === 'global' && selectedTask && selectedTask.source && selectedTask.dest && (
+                        <g>
+                          <path 
+                            d={`M ${MOCK_STATIONS[selectedTask.source].x} ${MOCK_STATIONS[selectedTask.source].y} L ${MOCK_STATIONS[selectedTask.dest].x} ${MOCK_STATIONS[selectedTask.dest].y}`} 
+                            stroke="#4f46e5" strokeWidth="8" strokeDasharray="20,20" className="animate-[dash_2s_linear_infinite]" opacity="0.6"
+                          />
+                          <circle cx={MOCK_STATIONS[selectedTask.source].x} cy={MOCK_STATIONS[selectedTask.source].y} r="15" fill="#f59e0b" stroke="#fff" strokeWidth="3"/>
+                          <circle cx={MOCK_STATIONS[selectedTask.dest].x} cy={MOCK_STATIONS[selectedTask.dest].y} r="20" fill="#10b981" stroke="#fff" strokeWidth="3"/>
+                          <text x={MOCK_STATIONS[selectedTask.dest].x + 25} y={MOCK_STATIONS[selectedTask.dest].y + 5} fill="#10b981" fontSize="24" fontWeight="bold">终点 {selectedTask.dest}</text>
+                        </g>
+                      )}
+                    </svg>
+
+                    {/* 渲染 AGV 实体 */}
+                    {agvs.map(agv => {
+                      // 判断高亮逻辑
+                      const isSingleHighlight = currentView === 'single' && agv.id === selectedAgvId;
+                      const isGlobalHighlight = currentView === 'global' && selectedTask && agv.id === selectedTask.agvId;
+                      const isHighlighted = isSingleHighlight || isGlobalHighlight;
+                      const hasError = agv.status === '异常报警';
+
+                      return (
+                        <div key={agv.id} className="absolute flex flex-col items-center justify-center transition-all duration-1000 group pointer-events-none" style={{ left: agv.x, top: agv.y, transform: 'translate(-50%, -50%)', zIndex: isHighlighted ? 50 : 10 }}>
+                          {isHighlighted && <div className={`absolute w-40 h-40 rounded-full animate-ping ${currentView === 'single' ? 'bg-cyan-500/30' : 'bg-indigo-500/30'}`}></div>}
+                          
+                          <div className={`w-12 h-12 rounded flex items-center justify-center relative shadow-2xl border-4 ${isHighlighted ? (currentView === 'single' ? 'border-cyan-300 bg-cyan-600 scale-150' : 'border-indigo-300 bg-indigo-600 scale-150') : hasError ? 'border-rose-400 bg-rose-700' : 'border-slate-500 bg-slate-700 opacity-60'}`} style={{ transform: `rotate(${agv.angle}rad)` }}>
+                            <div className="absolute top-0 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[12px] border-l-transparent border-r-transparent border-b-white transform -translate-y-1/2"></div>
+                          </div>
+                          
+                          <div className={`mt-3 px-2 py-1 bg-slate-900/90 rounded text-sm font-mono font-bold whitespace-nowrap border ${isHighlighted ? (currentView === 'single' ? 'border-cyan-400 text-cyan-300' : 'border-indigo-400 text-indigo-300') : 'border-slate-700 text-slate-400 opacity-60'}`}>
+                            {agv.id}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* === 左右悬浮面板渲染 === */}
+              {currentView === 'single' ? renderSingleView() : renderGlobalView()}
+
+            </div>
+          </div>
+        </div>
+
+        {/* 物理支架 */}
+        <div className="w-[120px] h-[60px] bg-gradient-to-b from-gray-800 to-gray-900 border-x-4 border-black relative z-0"></div>
+        <div className="w-[400px] h-[20px] bg-gray-700 rounded-t-3xl shadow-[0_10px_20px_rgba(0,0,0,0.5)] border-t-2 border-gray-600"></div>
+        <div className="w-[400px] h-[8px] bg-gray-900 rounded-b-xl"></div>
+      </div>
+    </div>
+  );
+};
+
+export default AgvSystemDashboard;

@@ -418,6 +418,11 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 reservedNodesThisOrder.Remove(targetNodeId);
             }
 
+            // 【关键修改：不再由调度器手动拔锁】
+            // 物理交通锁的“后松旧藤蔓”逻辑应交由 MockRobot 维护物理连贯性，
+            // 订单彻底结束后的“全局清理”则由 ExecuteTaskAsync 的 finally 块通过 ReleaseAllLocksForRobot 兜底。
+            // 此处硬性 ReleaseLock 会导致小车在空闲待命期间沦为“幽灵状态”（无区域占位），且在下一单启动跨区时报“锁不存在”异常。
+            /*
             if (_trafficController != null)
             {
                 // 先查找到映射节点，获取正确的 ZoneName 进行锁释放
@@ -426,6 +431,7 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                 
                 _trafficController.ReleaseLock(zoneName, robotId);
             }
+            */
         }
 
         /// <summary>

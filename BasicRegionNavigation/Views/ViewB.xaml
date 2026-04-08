@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="BasicRegionNavigation.Views.ViewB"
+<UserControl x:Class="BasicRegionNavigation.Views.ViewB"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:hc="https://handyorg.github.io/handycontrol"
@@ -8,6 +8,7 @@
              xmlns:cons="clr-namespace:BasicRegionNavigation.Controls"
              xmlns:controls="clr-namespace:BasicRegionNavigation.Controls"
              xmlns:skia="clr-namespace:LiveChartsCore.SkiaSharpView.Painting;assembly=LiveChartsCore.SkiaSharpView"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              prism:ViewModelLocator.AutoWireViewModel="True">
     <UserControl.Resources>
         <ResourceDictionary>
@@ -16,13 +17,16 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid x:Name="Grid1"
-          Margin="15,0">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="1*" />
-            <ColumnDefinition Width="1*" />
-            <ColumnDefinition Width="2*" />
-        </Grid.ColumnDefinitions>
+    <Grid>
+        <!-- 原来的 ViewB 内容已通过 Visibility="Collapsed" 隐藏 -->
+        <Grid x:Name="Grid1"
+              Margin="15,0"
+              Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*" />
+                <ColumnDefinition Width="1*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="1*" />
             <RowDefinition Height="11*" />
@@ -153,5 +157,13 @@
                 </lvc:CartesianChart>
             </Grid>
         </Border>
+    </Grid>
+        
+        <!-- Web 容器，加载 agv_html-main 项目 -->
+        <wv2:WebView2 x:Name="ReactAppWebView" 
+                      Source="http://localhost:3000" 
+                      Visibility="Visible"
+                      HorizontalAlignment="Stretch" 
+                      VerticalAlignment="Stretch" />
     </Grid>
 </UserControl>

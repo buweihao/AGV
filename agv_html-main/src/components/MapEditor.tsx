@@ -1,0 +1,1714 @@
+import React, { useState, useRef, MouseEvent, useMemo, useEffect } from 'react';
+import { Download, Upload, MousePointer2, Link as LinkIcon, Plus, Settings, Trash2, X, Info, Map as MapIcon, Route, ChevronRight, GripVertical, Brush, ListFilter, ZoomIn, ZoomOut, Maximize, Square, Minus, ListOrdered } from 'lucide-react';
+
+type NodeType = 'Normal' | 'Charging' | 'Load' | 'Unload' | 'Wash' | 'Buffer';
+type ActionCode = 'None' | 'Plc_Load' | 'Plc_Unload' | 'Plc_Wash' | 'Plc_OpenDoor';
+type VisualElementType = 'rect' | 'line';
+
+interface LogicNode {
+  Id: number;
+  X: number;
+  Y: number;
+  ZoneName: string;
+  NodeType: NodeType;
+  ConnectedNodeDistances: Record<string, number>;
+}
+
+interface TaskStage {
+  TargetNodeId: number;
+  ActionCode: ActionCode;
+  WaitTimeMs: number;
+  StageName: string;
+  DynamicTargetType?: NodeType | '';
+  CandidateNodeIds?: number[];
+}
+
+interface TaskTemplate {
+  TemplateId: string;
+  TemplateName: string;
+  Stages: TaskStage[];
+}
+
+interface VisualElement {
+  id: number;
+  type: VisualElementType;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+interface AgvConfig {
+  MapNodes: LogicNode[];
+  TaskTemplates: TaskTemplate[];
+  PixelsPerMeter?: number;
+}
+
+const NODE_COLORS: Record<NodeType, string> = {
+  Normal: '#9ca3af', // gray-400
+  Charging: '#eab308', // yellow-500
+  Load: '#3b82f6', // blue-500
+  Unload: '#22c55e', // green-500
+  Wash: '#a855f7', // purple-500
+  Buffer: '#f97316', // orange-500
+};
+
+const ACTION_CODES: ActionCode[] = ['None', 'Plc_Load', 'Plc_Unload', 'Plc_Wash', 'Plc_OpenDoor'];
+
+const GRID_SIZE = 50;
+const NODE_RADIUS = 20;
+
+export default function App() {
+  // Global State
+  const [mainMode, setMainMode] = useState<'map' | 'task'>('map');
+  const [nodes, setNodes] = useState<LogicNode[]>([]);
+  const [templates, setTemplates] = useState<TaskTemplate[]>([]);
+  const [visualElements, setVisualElements] = useState<VisualElement[]>([]);
+
+  // Map Mode State
+  const [mapMode, setMapMode] = useState<'select' | 'add' | 'connect' | 'paint_zone' | 'draw_line' | 'draw_rect'>('select');
+  const [selectedNodeType, setSelectedNodeType] = useState<NodeType>('Normal');
+  const [connectingFrom, setConnectingFrom] = useState<number | null>(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<number[]>([]);
+  const [selectedElementIds, setSelectedElementIds] = useState<number[]>([]);
+  const [selectionBox, setSelectionBox] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
+  const [isDraggingSelection, setIsDraggingSelection] = useState(false);
+  const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  const [editingNodeId, setEditingNodeId] = useState<number | null>(null);
+  const [editZoneName, setEditZoneName] = useState('');
+  const [paintZoneName, setPaintZoneName] = useState('Z1');
+  const [hoveredZoneName, setHoveredZoneName] = useState<string | null>(null);
+  const [drawingElement, setDrawingElement] = useState<VisualElement | null>(null);
+  const [editingConnection, setEditingConnection] = useState<{from: number, to: number} | null>(null);
+  const [pixelsPerMeter, setPixelsPerMeter] = useState<number>(100);
+
+  // Task Mode State
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
+  // Shared State
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const innerContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Derived State
+  const selectedTemplate = useMemo(() => 
+    templates.find(t => t.TemplateId === selectedTemplateId),
+    [templates, selectedTemplateId]
+  );
+
+  const uniqueZones = useMemo(() => {
+    const zones = new Set(nodes.map(n => n.ZoneName).filter(Boolean));
+    return Array.from(zones).sort();
+  }, [nodes]);
+
+  const getZoneColor = (zoneName: string, alpha: number = 0.4) => {
+    if (!zoneName) return 'transparent';
+    let hash = 0;
+    for (let i = 0; i < zoneName.length; i++) {
+      hash = zoneName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsla(${hue}, 70%, 50%, ${alpha})`;
+  };
+
+  // Keyboard shortcuts for deletion
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (mainMode === 'map' && mapMode === 'select') {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          // Make sure we are not editing text
+          if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+            return;
+          }
+          if (editingConnection) {
+            removeConnection(editingConnection.from, editingConnection.to);
+            setEditingConnection(null);
+            return;
+          }
+          if (selectedNodeIds.length > 0) {
+            setNodes(prev => prev.filter(n => !selectedNodeIds.includes(n.Id)).map(n => {
+              const newDistances = { ...n.ConnectedNodeDistances };
+              selectedNodeIds.forEach(id => {
+                delete newDistances[id.toString()];
+              });
+              return {
+                ...n,
+                ConnectedNodeDistances: newDistances
+              };
+            }));
+            setTemplates(prev => prev.map(t => ({
+              ...t,
+              Stages: t.Stages.filter(s => !selectedNodeIds.includes(s.TargetNodeId))
+            })));
+            setSelectedNodeIds([]);
+          }
+          if (selectedElementIds.length > 0) {
+            setVisualElements(prev => prev.filter(el => !selectedElementIds.includes(el.id)));
+            setSelectedElementIds([]);
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mainMode, mapMode, selectedNodeIds, selectedElementIds]);
+
+  // Auto-increment ID for nodes
+  const getNextNodeId = () => {
+    return nodes.length > 0 ? Math.max(...nodes.map(n => n.Id)) + 1 : 1;
+  };
+
+  const handleCanvasMouseDown = (e: MouseEvent) => {
+    if (mainMode === 'map') {
+      if (!innerContainerRef.current) return;
+      const rect = innerContainerRef.current.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / scale;
+      const y = (e.clientY - rect.top) / scale;
+      
+      // Snap to grid
+      const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
+      const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
+
+      if (mapMode === 'add') {
+        const newNode: LogicNode = {
+          Id: getNextNodeId(),
+          X: snappedX,
+          Y: snappedY,
+          ZoneName: `Z${getNextNodeId()}`,
+          NodeType: selectedNodeType,
+          ConnectedNodeDistances: {}
+        };
+        
+        setNodes([...nodes, newNode]);
+      } else if (mapMode === 'connect') {
+        setConnectingFrom(null);
+      } else if (mapMode === 'select') {
+        setEditingNodeId(null);
+        if (!e.shiftKey) {
+          setSelectedNodeIds([]);
+          setSelectedElementIds([]);
+        }
+        setSelectionBox({ x1: x, y1: y, x2: x, y2: y });
+      } else if (mapMode === 'draw_line' || mapMode === 'draw_rect') {
+        setDrawingElement({
+          id: Date.now(),
+          type: mapMode === 'draw_line' ? 'line' : 'rect',
+          x1: snappedX,
+          y1: snappedY,
+          x2: snappedX,
+          y2: snappedY
+        });
+      }
+    }
+  };
+
+  const handleNodeMouseDown = (e: MouseEvent, id: number) => {
+    e.stopPropagation();
+    
+    if (mainMode === 'map') {
+      if (mapMode === 'select') {
+        if (innerContainerRef.current) {
+          const rect = innerContainerRef.current.getBoundingClientRect();
+          const mouseX = (e.clientX - rect.left) / scale;
+          const mouseY = (e.clientY - rect.top) / scale;
+          
+          if (!selectedNodeIds.includes(id)) {
+            if (e.shiftKey) {
+              setSelectedNodeIds([...selectedNodeIds, id]);
+            } else {
+              setSelectedNodeIds([id]);
+              setSelectedElementIds([]);
+            }
+          } else if (e.shiftKey) {
+            // Deselect if already selected and shift is pressed
+            setSelectedNodeIds(selectedNodeIds.filter(selectedId => selectedId !== id));
+            return; // Don't start dragging if we just deselected
+          }
+          setIsDraggingSelection(true);
+          setLastMousePos({ x: mouseX, y: mouseY });
+        }
+      } else if (mapMode === 'connect') {
+        if (connectingFrom === null) {
+          setConnectingFrom(id);
+        } else {
+          if (connectingFrom !== id) {
+            setNodes(nodes.map(n => {
+              if (n.Id === connectingFrom && !(id.toString() in n.ConnectedNodeDistances)) {
+                const targetNode = nodes.find(tn => tn.Id === id);
+                let dist = 1;
+                if (targetNode) {
+                  // Calculate euclidean distance as default physical length
+                  dist = Math.round((Math.sqrt(Math.pow(n.X - targetNode.X, 2) + Math.pow(n.Y - targetNode.Y, 2)) / pixelsPerMeter) * 10) / 10;
+                }
+                return { ...n, ConnectedNodeDistances: { ...n.ConnectedNodeDistances, [id.toString()]: dist } };
+              }
+              return n;
+            }));
+          }
+          setConnectingFrom(null);
+        }
+      } else if (mapMode === 'paint_zone') {
+        setNodes(nodes.map(n => {
+          if (n.Id === id) {
+            return { ...n, ZoneName: paintZoneName };
+          }
+          return n;
+        }));
+      }
+    } else if (mainMode === 'task') {
+      if (selectedTemplateId) {
+        // Add stage to template
+        const node = nodes.find(n => n.Id === id);
+        if (node) {
+          const newStage: TaskStage = {
+            TargetNodeId: node.Id,
+            ActionCode: 'None',
+            WaitTimeMs: 0,
+            StageName: `前往 ${node.ZoneName}`
+          };
+          setTemplates(templates.map(t => 
+            t.TemplateId === selectedTemplateId 
+              ? { ...t, Stages: [...t.Stages, newStage] }
+              : t
+          ));
+        }
+      }
+    }
+  };
+
+  const handleElementMouseDown = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    if (mainMode === 'map' && mapMode === 'select') {
+      if (editingConnection) {
+        setEditingConnection(null);
+      }
+      if (innerContainerRef.current) {
+        const rect = innerContainerRef.current.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left) / scale;
+        const mouseY = (e.clientY - rect.top) / scale;
+
+        if (!selectedElementIds.includes(id)) {
+          if (e.shiftKey) {
+            setSelectedElementIds([...selectedElementIds, id]);
+          } else {
+            setSelectedElementIds([id]);
+            setSelectedNodeIds([]);
+          }
+        } else if (e.shiftKey) {
+          setSelectedElementIds(selectedElementIds.filter(selectedId => selectedId !== id));
+          return;
+        }
+        setIsDraggingSelection(true);
+        setLastMousePos({ x: mouseX, y: mouseY });
+      }
+    }
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!innerContainerRef.current) return;
+    const rect = innerContainerRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
+    
+    setMousePos({ x, y });
+
+    if (mainMode === 'map' && mapMode === 'select') {
+      if (selectionBox) {
+        setSelectionBox({ ...selectionBox, x2: x, y2: y });
+      } else if (isDraggingSelection && (selectedNodeIds.length > 0 || selectedElementIds.length > 0)) {
+        const dx = x - lastMousePos.x;
+        const dy = y - lastMousePos.y;
+        setLastMousePos({ x, y });
+        
+        setNodes(nodes.map(n => 
+          selectedNodeIds.includes(n.Id) ? { ...n, X: n.X + dx, Y: n.Y + dy } : n
+        ));
+        setVisualElements(visualElements.map(el =>
+          selectedElementIds.includes(el.id) ? { ...el, x1: el.x1 + dx, y1: el.y1 + dy, x2: el.x2 + dx, y2: el.y2 + dy } : el
+        ));
+      }
+    } else if (mainMode === 'map' && drawingElement) {
+      const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
+      const snappedY = Math.round(y / GRID_SIZE) * GRID_SIZE;
+      setDrawingElement({ ...drawingElement, x2: snappedX, y2: snappedY });
+    }
+  };
+
+  const handleMouseUp = (e?: MouseEvent | globalThis.MouseEvent) => {
+    if (mainMode === 'map') {
+      if (selectionBox) {
+        const minX = Math.min(selectionBox.x1, selectionBox.x2);
+        const maxX = Math.max(selectionBox.x1, selectionBox.x2);
+        const minY = Math.min(selectionBox.y1, selectionBox.y2);
+        const maxY = Math.max(selectionBox.y1, selectionBox.y2);
+
+        const newlySelectedNodes = nodes.filter(n =>
+          n.X >= minX && n.X <= maxX && n.Y >= minY && n.Y <= maxY
+        ).map(n => n.Id);
+
+        const newlySelectedElements = visualElements.filter(el => {
+          const elMinX = Math.min(el.x1, el.x2);
+          const elMaxX = Math.max(el.x1, el.x2);
+          const elMinY = Math.min(el.y1, el.y2);
+          const elMaxY = Math.max(el.y1, el.y2);
+          return elMaxX >= minX && elMinX <= maxX && elMaxY >= minY && elMinY <= maxY;
+        }).map(el => el.id);
+
+        if (e?.shiftKey) {
+          setSelectedNodeIds(Array.from(new Set([...selectedNodeIds, ...newlySelectedNodes])));
+          setSelectedElementIds(Array.from(new Set([...selectedElementIds, ...newlySelectedElements])));
+        } else {
+          setSelectedNodeIds(newlySelectedNodes);
+          setSelectedElementIds(newlySelectedElements);
+        }
+        setSelectionBox(null);
+      }
+
+      if (isDraggingSelection) {
+        setNodes(nodes.map(n => {
+          if (selectedNodeIds.includes(n.Id)) {
+            return {
+              ...n,
+              X: Math.round(n.X / GRID_SIZE) * GRID_SIZE,
+              Y: Math.round(n.Y / GRID_SIZE) * GRID_SIZE
+            };
+          }
+          return n;
+        }));
+        setVisualElements(visualElements.map(el => {
+          if (selectedElementIds.includes(el.id)) {
+            return {
+              ...el,
+              x1: Math.round(el.x1 / GRID_SIZE) * GRID_SIZE,
+              y1: Math.round(el.y1 / GRID_SIZE) * GRID_SIZE,
+              x2: Math.round(el.x2 / GRID_SIZE) * GRID_SIZE,
+              y2: Math.round(el.y2 / GRID_SIZE) * GRID_SIZE,
+            };
+          }
+          return el;
+        }));
+        setIsDraggingSelection(false);
+      }
+    }
+    if (drawingElement) {
+      if (drawingElement.x1 !== drawingElement.x2 || drawingElement.y1 !== drawingElement.y2) {
+        setVisualElements([...visualElements, drawingElement]);
+      }
+      setDrawingElement(null);
+    }
+  };
+
+  const handleNodeDoubleClick = (e: MouseEvent, node: LogicNode) => {
+    e.stopPropagation();
+    if (mainMode === 'map') {
+      setEditingNodeId(node.Id);
+      setEditZoneName(node.ZoneName);
+    }
+  };
+
+  const saveNodeEdit = () => {
+    if (editingNodeId !== null) {
+      setNodes(nodes.map(n => 
+        n.Id === editingNodeId ? { ...n, ZoneName: editZoneName } : n
+      ));
+      setEditingNodeId(null);
+    }
+  };
+
+  const deleteNode = (id: number) => {
+    setNodes(nodes.filter(n => n.Id !== id).map(n => {
+      const newDistances = { ...n.ConnectedNodeDistances };
+      delete newDistances[id.toString()];
+      return {
+        ...n,
+        ConnectedNodeDistances: newDistances
+      };
+    }));
+    // Also remove stages referencing this node
+    setTemplates(templates.map(t => ({
+      ...t,
+      Stages: t.Stages.filter(s => s.TargetNodeId !== id)
+    })));
+    setEditingNodeId(null);
+  };
+
+  const removeConnection = (fromId: number, toId: number) => {
+    setNodes(nodes.map(n => {
+      if (n.Id === fromId) {
+        const newDistances = { ...n.ConnectedNodeDistances };
+        delete newDistances[toId.toString()];
+        return { ...n, ConnectedNodeDistances: newDistances };
+      }
+      return n;
+    }));
+  };
+
+  const organizeNodesAndZones = () => {
+    // 1. Sort nodes by Y then X
+    const sortedNodes = [...nodes].sort((a, b) => {
+      // Add a small tolerance for Y to group nodes on the same visual row
+      if (Math.abs(a.Y - b.Y) > GRID_SIZE / 2) {
+        return a.Y - b.Y;
+      }
+      return a.X - b.X;
+    });
+
+    // 2. Create ID mapping
+    const idMap = new Map<number, number>();
+    sortedNodes.forEach((n, index) => {
+      idMap.set(n.Id, index + 1);
+    });
+
+    // 3. Determine Zone Order
+    const zonePositions = new Map<string, { x: number, y: number }>();
+    sortedNodes.forEach(n => {
+      if (!n.ZoneName) return;
+      if (!zonePositions.has(n.ZoneName)) {
+        zonePositions.set(n.ZoneName, { x: n.X, y: n.Y });
+      } else {
+        const pos = zonePositions.get(n.ZoneName)!;
+        if (n.Y < pos.y || (Math.abs(n.Y - pos.y) <= GRID_SIZE / 2 && n.X < pos.x)) {
+          zonePositions.set(n.ZoneName, { x: n.X, y: n.Y });
+        }
+      }
+    });
+
+    const sortedZones = Array.from(zonePositions.entries()).sort((a, b) => {
+      if (Math.abs(a[1].y - b[1].y) > GRID_SIZE / 2) {
+        return a[1].y - b[1].y;
+      }
+      return a[1].x - b[1].x;
+    });
+
+    const zoneMap = new Map<string, string>();
+    sortedZones.forEach((z, index) => {
+      zoneMap.set(z[0], `Z${index + 1}`);
+    });
+
+    // 4. Apply mappings to nodes
+    const newNodes = sortedNodes.map(n => {
+      const newId = idMap.get(n.Id)!;
+      const newZone = n.ZoneName ? zoneMap.get(n.ZoneName) || n.ZoneName : n.ZoneName;
+      const newConnected: Record<string, number> = {};
+      Object.entries(n.ConnectedNodeDistances || {}).forEach(([cid, dist]) => {
+        const mappedId = idMap.get(parseInt(cid));
+        if (mappedId) {
+          newConnected[mappedId.toString()] = dist as number;
+        }
+      });
+      return {
+        ...n,
+        Id: newId,
+        ZoneName: newZone,
+        ConnectedNodeDistances: newConnected
+      };
+    });
+
+    // 5. Apply mappings to templates
+    const newTemplates = templates.map(t => ({
+      ...t,
+      Stages: t.Stages.map(s => {
+        if (s.TargetNodeId === 0) {
+          // Dynamic stage
+          let newCandidateIds = s.CandidateNodeIds 
+            ? s.CandidateNodeIds.map(id => idMap.get(id)).filter((id): id is number => id !== undefined)
+            : undefined;
+          
+          return {
+            ...s,
+            CandidateNodeIds: newCandidateIds,
+            StageName: s.StageName
+          };
+        }
+
+        const newTargetId = idMap.get(s.TargetNodeId);
+        if (!newTargetId) return s;
+        
+        let newStageName = s.StageName;
+        const oldNode = nodes.find(n => n.Id === s.TargetNodeId);
+        if (oldNode && oldNode.ZoneName) {
+          const oldZone = oldNode.ZoneName;
+          const newZone = zoneMap.get(oldZone);
+          if (newZone && newStageName.includes(oldZone)) {
+            newStageName = newStageName.replace(oldZone, newZone);
+          }
+        }
+
+        return {
+          ...s,
+          TargetNodeId: newTargetId,
+          StageName: newStageName
+        };
+      })
+    }));
+
+    setNodes(newNodes);
+    setTemplates(newTemplates);
+    setSelectedNodeIds([]);
+    setConnectingFrom(null);
+    setEditingNodeId(null);
+  };
+
+  const exportJSON = () => {
+    const config: AgvConfig & { VisualElements?: VisualElement[] } = {
+      MapNodes: nodes,
+      TaskTemplates: templates,
+      VisualElements: visualElements,
+      PixelsPerMeter: pixelsPerMeter
+    };
+    const dataStr = JSON.stringify(config, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = 'agv_config.json';
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const importJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileReader = new FileReader();
+    if (e.target.files && e.target.files[0]) {
+      fileReader.readAsText(e.target.files[0], "UTF-8");
+      fileReader.onload = e => {
+        try {
+          const parsed = JSON.parse(e.target?.result as string) as AgvConfig & { VisualElements?: VisualElement[] };
+          
+          const importedPixelsPerMeter = parsed.PixelsPerMeter || 100;
+          setPixelsPerMeter(importedPixelsPerMeter);
+
+          if (parsed.MapNodes && Array.isArray(parsed.MapNodes)) {
+            const migratedNodes = parsed.MapNodes.map((n: any) => {
+              let distances: Record<string, number> = {};
+              if (n.ConnectedNodeDistances) {
+                distances = n.ConnectedNodeDistances;
+              } else if (n.ConnectedNodeIds && Array.isArray(n.ConnectedNodeIds)) {
+                n.ConnectedNodeIds.forEach((id: number) => {
+                  const targetNode = parsed.MapNodes.find((tn: any) => tn.Id === id);
+                  let dist = 1;
+                  if (targetNode) {
+                    dist = Math.round((Math.sqrt(Math.pow(n.X - targetNode.X, 2) + Math.pow(n.Y - targetNode.Y, 2)) / importedPixelsPerMeter) * 10) / 10;
+                  }
+                  distances[id.toString()] = dist;
+                });
+              }
+              return {
+                ...n,
+                ConnectedNodeDistances: distances
+              };
+            });
+            setNodes(migratedNodes);
+            setTemplates(parsed.TaskTemplates || []);
+            setSelectedTemplateId(null);
+            if (parsed.VisualElements && Array.isArray(parsed.VisualElements)) {
+              setVisualElements(parsed.VisualElements);
+            }
+          } else {
+            alert("无效的 JSON 格式。必须包含 MapNodes 数组。");
+          }
+        } catch (err) {
+          alert("解析 JSON 文件出错。");
+        }
+      };
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const getLineEndpoints = (x1: number, y1: number, x2: number, y2: number, radius: number) => {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance === 0) return { startX: x1, startY: y1, endX: x2, endY: y2 };
+    
+    const ratio = radius / distance;
+    return {
+      startX: x1 + dx * ratio,
+      startY: y1 + dy * ratio,
+      endX: x2 - dx * ratio,
+      endY: y2 - dy * ratio
+    };
+  };
+
+  // Task Template Management
+  const createNewTemplate = () => {
+    const newId = `Task_${Date.now()}`;
+    const newTemplate: TaskTemplate = {
+      TemplateId: newId,
+      TemplateName: '新建任务流程',
+      Stages: []
+    };
+    setTemplates([...templates, newTemplate]);
+    setSelectedTemplateId(newId);
+  };
+
+  const updateTemplate = (id: string, updates: Partial<TaskTemplate>) => {
+    setTemplates(templates.map(t => t.TemplateId === id ? { ...t, ...updates } : t));
+  };
+
+  const deleteTemplate = (id: string) => {
+    setTemplates(templates.filter(t => t.TemplateId !== id));
+    if (selectedTemplateId === id) setSelectedTemplateId(null);
+  };
+
+  const updateStage = (templateId: string, stageIndex: number, updates: Partial<TaskStage>) => {
+    setTemplates(templates.map(t => {
+      if (t.TemplateId === templateId) {
+        const newStages = [...t.Stages];
+        newStages[stageIndex] = { ...newStages[stageIndex], ...updates };
+        return { ...t, Stages: newStages };
+      }
+      return t;
+    }));
+  };
+
+  const removeStage = (templateId: string, stageIndex: number) => {
+    setTemplates(templates.map(t => {
+      if (t.TemplateId === templateId) {
+        const newStages = [...t.Stages];
+        newStages.splice(stageIndex, 1);
+        return { ...t, Stages: newStages };
+      }
+      return t;
+    }));
+  };
+
+  return (
+    <div className="flex flex-col h-full w-full bg-neutral-900 text-neutral-100 font-sans overflow-hidden">
+      {/* Top Header */}
+      <header className="h-14 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between px-6 shrink-0 z-20">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+              <Route size={14} className="text-white" />
+            </div>
+            <h1 className="text-lg font-bold text-white tracking-tight">WCS Configurator</h1>
+          </div>
+          
+          <div className="flex bg-neutral-900 rounded-lg p-1 border border-neutral-800">
+            <button
+              onClick={() => setMainMode('map')}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                mainMode === 'map' ? 'bg-neutral-700 text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
+              }`}
+            >
+              <MapIcon size={16} />
+              地图编辑模式
+            </button>
+            <button
+              onClick={() => setMainMode('task')}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                mainMode === 'task' ? 'bg-blue-600 text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
+              }`}
+            >
+              <Route size={16} />
+              任务编排模式
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={organizeNodesAndZones}
+            className="flex items-center gap-2 px-3 py-1.5 border border-neutral-700 hover:bg-neutral-800 text-neutral-300 rounded-md transition-colors text-sm font-medium"
+            title="将所有点位和管制区从左上到右下顺序重新编号"
+          >
+            <ListOrdered size={14} />
+            一键规整
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-1.5 border border-neutral-700 hover:bg-neutral-800 text-neutral-300 rounded-md transition-colors text-sm font-medium"
+          >
+            <Upload size={14} />
+            导入配置
+          </button>
+          <button
+            onClick={exportJSON}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors text-sm font-medium shadow-sm"
+          >
+            <Download size={14} />
+            导出配置
+          </button>
+          <input
+            type="file"
+            accept=".json"
+            ref={fileInputRef}
+            onChange={importJSON}
+            className="hidden"
+          />
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Main Canvas Area */}
+        <main className="flex-1 relative bg-neutral-900 overflow-hidden flex flex-col select-none">
+          {/* Top Status Bar */}
+          <div className="h-10 bg-neutral-800/80 backdrop-blur-sm border-b border-neutral-700 flex items-center px-4 justify-between z-10 absolute top-0 left-0 right-0">
+            <div className="text-xs text-neutral-400 flex items-center gap-4">
+              {mainMode === 'map' ? (
+                <>
+                  <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    当前工具: <strong className="text-neutral-200 capitalize">
+                      {mapMode === 'select' ? '选择/拖拽' : 
+                       mapMode === 'add' ? '添加节点' : 
+                       mapMode === 'connect' ? '连线' : 
+                       mapMode === 'paint_zone' ? '管制区刷子' : 
+                       mapMode === 'draw_line' ? '画墙' : '画区域'}
+                    </strong>
+                  </span>
+                  {mapMode === 'add' && (
+                    <span>待放置: <strong className="text-neutral-200">{selectedNodeType}</strong></span>
+                  )}
+                  {mapMode === 'connect' && connectingFrom !== null && (
+                    <span className="text-blue-400">请点击目标节点完成连线...</span>
+                  )}
+                  {mapMode === 'paint_zone' && (
+                    <span>当前涂装区: <strong className="text-neutral-200">{paintZoneName}</strong></span>
+                  )}
+                </>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  任务编排: <strong className="text-neutral-200">{selectedTemplate ? `正在编辑 [${selectedTemplate.TemplateName}]` : '请在右侧选择或创建任务模板'}</strong>
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-neutral-500 font-mono">
+              X: {Math.round(mousePos.x)}, Y: {Math.round(mousePos.y)}
+            </div>
+          </div>
+
+          {/* Canvas Scroll Container */}
+          <div 
+            ref={canvasRef}
+            className={`flex-1 overflow-auto relative w-full h-full select-none ${mainMode === 'map' ? 'cursor-crosshair' : 'cursor-default'}`}
+          >
+            <div
+              ref={innerContainerRef}
+              className="relative"
+              style={{
+                width: '5000px',
+                height: '5000px',
+                transform: `scale(${scale})`,
+                transformOrigin: '0 0',
+              }}
+              onMouseDown={handleCanvasMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              {/* Grid Background */}
+              <div 
+                className="absolute top-0 left-0 pointer-events-none w-full h-full"
+                style={{
+                  backgroundImage: `
+                    linear-gradient(to right, #333 1px, transparent 1px),
+                    linear-gradient(to bottom, #333 1px, transparent 1px)
+                  `,
+                  backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
+                  opacity: 0.5
+                }}
+              />
+
+              {/* SVG Layer for Lines */}
+            <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none">
+              <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                  <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
+                </marker>
+                <marker id="arrowhead-task" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                  <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
+                </marker>
+              </defs>
+
+              {/* Visual Elements */}
+              {visualElements.concat(drawingElement ? [drawingElement] : []).map(el => {
+                const isSelected = selectedElementIds.includes(el.id);
+                if (el.type === 'line') {
+                  return (
+                    <g 
+                      key={`ve-${el.id}`} 
+                      className={mainMode === 'map' && mapMode === 'select' ? "pointer-events-auto cursor-pointer group" : "pointer-events-none"}
+                      onDoubleClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (mainMode === 'map' && mapMode === 'select') {
+                          setVisualElements(visualElements.filter(v => v.id !== el.id)); 
+                        }
+                      }}
+                      onMouseDown={(e) => handleElementMouseDown(e, el.id)}
+                    >
+                      <line x1={el.x1} y1={el.y1} x2={el.x2} y2={el.y2} stroke="transparent" strokeWidth="20" />
+                      <line 
+                        x1={el.x1} y1={el.y1} x2={el.x2} y2={el.y2} 
+                        stroke={isSelected ? "#3b82f6" : "#6b7280"} 
+                        strokeWidth={isSelected ? "6" : "4"} 
+                        strokeLinecap="round"
+                        className={mainMode === 'map' && mapMode === 'select' && !isSelected ? "group-hover:stroke-red-500 transition-colors" : ""}
+                      />
+                    </g>
+                  );
+                } else {
+                  const x = Math.min(el.x1, el.x2);
+                  const y = Math.min(el.y1, el.y2);
+                  const w = Math.abs(el.x1 - el.x2);
+                  const h = Math.abs(el.y1 - el.y2);
+                  return (
+                    <rect 
+                      key={`ve-${el.id}`} 
+                      x={x} y={y} width={w} height={h} 
+                      fill={isSelected ? "#3b82f6" : "#374151"} 
+                      fillOpacity={isSelected ? "0.4" : "0.3"} 
+                      stroke={isSelected ? "#60a5fa" : "#4b5563"} 
+                      strokeWidth={isSelected ? "3" : "2"}
+                      onDoubleClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (mainMode === 'map' && mapMode === 'select') {
+                          setVisualElements(visualElements.filter(v => v.id !== el.id)); 
+                        }
+                      }}
+                      onMouseDown={(e) => handleElementMouseDown(e, el.id)}
+                      className={mainMode === 'map' && mapMode === 'select' && !isSelected ? "cursor-pointer hover:stroke-red-500 hover:fill-red-500/20 transition-colors pointer-events-auto" : (mainMode === 'map' && mapMode === 'select' ? "cursor-pointer pointer-events-auto" : "pointer-events-none")}
+                    />
+                  );
+                }
+              })}
+
+              {/* Map Connections (Base Layer) */}
+              {nodes.map(node => 
+                Object.keys(node.ConnectedNodeDistances || {}).map(targetIdStr => {
+                  const targetId = parseInt(targetIdStr);
+                  const targetNode = nodes.find(n => n.Id === targetId);
+                  if (!targetNode) return null;
+                  
+                  const isBidirectional = targetNode.ConnectedNodeDistances && (node.Id.toString() in targetNode.ConnectedNodeDistances);
+                  
+                  let offset = { x: 0, y: 0 };
+                  if (isBidirectional) {
+                    const dx = targetNode.X - node.X;
+                    const dy = targetNode.Y - node.Y;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    if (length > 0) {
+                      offset = { x: -dy / length * 5, y: dx / length * 5 };
+                    }
+                  }
+
+                  const { startX, startY, endX, endY } = getLineEndpoints(
+                    node.X + offset.x, node.Y + offset.y, 
+                    targetNode.X + offset.x, targetNode.Y + offset.y, 
+                    NODE_RADIUS + 2
+                  );
+                  
+                  const midX = (startX + endX) / 2;
+                  const midY = (startY + endY) / 2;
+                  const distance = node.ConnectedNodeDistances[targetIdStr];
+
+                  return (
+                    <g 
+                      key={`map-${node.Id}-${targetId}`} 
+                      className={mainMode === 'map' && mapMode === 'select' ? "pointer-events-auto cursor-pointer group" : "pointer-events-none"} 
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (mainMode === 'map' && mapMode === 'select') {
+                          if (e.shiftKey) {
+                            removeConnection(node.Id, targetId);
+                          } else {
+                            setEditingConnection({from: node.Id, to: targetId});
+                          }
+                        }
+                      }}
+                    >
+                      <line x1={startX} y1={startY} x2={endX} y2={endY} stroke="rgba(255,255,255,0.01)" strokeWidth="24" />
+                      <line
+                        x1={startX} y1={startY} x2={endX} y2={endY}
+                        stroke={editingConnection?.from === node.Id && editingConnection?.to === targetId ? "#3b82f6" : "#9ca3af"}
+                        strokeWidth={editingConnection?.from === node.Id && editingConnection?.to === targetId ? "3" : "2"}
+                        markerEnd="url(#arrowhead)"
+                        className={mainMode === 'map' && mapMode === 'select' ? "group-hover:stroke-blue-400 group-hover:stroke-[3px] transition-all" : "opacity-60"}
+                      />
+                      <rect
+                        x={midX - 15}
+                        y={midY - 14}
+                        width="30"
+                        height="16"
+                        fill="#1f2937"
+                        rx="4"
+                        className="opacity-80"
+                      />
+                      <text
+                        x={midX}
+                        y={midY - 2}
+                        fill={editingConnection?.from === node.Id && editingConnection?.to === targetId ? "#60a5fa" : "#e5e7eb"}
+                        fontSize="10"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        className="select-none"
+                      >
+                        {distance}
+                      </text>
+                    </g>
+                  );
+                })
+              )}
+
+              {/* Active Drawing Line (Map Mode) */}
+              {mainMode === 'map' && mapMode === 'connect' && connectingFrom !== null && (
+                (() => {
+                  const fromNode = nodes.find(n => n.Id === connectingFrom);
+                  if (!fromNode) return null;
+                  const { startX, startY, endX, endY } = getLineEndpoints(
+                    fromNode.X, fromNode.Y, mousePos.x, mousePos.y, NODE_RADIUS
+                  );
+                  return (
+                    <line
+                      x1={startX} y1={startY} x2={endX} y2={endY}
+                      stroke="#9ca3af" strokeWidth="2" strokeDasharray="5,5"
+                      markerEnd="url(#arrowhead)"
+                    />
+                  );
+                })()
+              )}
+
+              {/* Task Orchestration Path (Task Mode) */}
+              {mainMode === 'task' && selectedTemplate && (
+                selectedTemplate.Stages.map((stage, index) => {
+                  if (index === 0) return null;
+                  const prevStage = selectedTemplate.Stages[index - 1];
+                  const nodeA = nodes.find(n => n.Id === prevStage.TargetNodeId);
+                  const nodeB = nodes.find(n => n.Id === stage.TargetNodeId);
+                  
+                  if (!nodeA || !nodeB) return null;
+
+                  const { startX, startY, endX, endY } = getLineEndpoints(
+                    nodeA.X, nodeA.Y, nodeB.X, nodeB.Y, NODE_RADIUS + 2
+                  );
+
+                  return (
+                    <line
+                      key={`task-path-${index}`}
+                      x1={startX} y1={startY} x2={endX} y2={endY}
+                      stroke="#3b82f6" strokeWidth="3" strokeDasharray="8,4"
+                      markerEnd="url(#arrowhead-task)"
+                      className="animate-[dash_1s_linear_infinite]"
+                      style={{ animation: 'dash 1s linear infinite' }}
+                    />
+                  );
+                })
+              )}
+            </svg>
+
+            {/* Selection Box */}
+            {selectionBox && (
+              <div
+                className="absolute border border-blue-500 bg-blue-500/20 pointer-events-none z-50"
+                style={{
+                  left: Math.min(selectionBox.x1, selectionBox.x2),
+                  top: Math.min(selectionBox.y1, selectionBox.y2),
+                  width: Math.abs(selectionBox.x1 - selectionBox.x2),
+                  height: Math.abs(selectionBox.y1 - selectionBox.y2),
+                }}
+              />
+            )}
+
+            {/* Nodes Layer */}
+            {nodes.map(node => {
+              const isConnecting = mainMode === 'map' && mapMode === 'connect' && connectingFrom === node.Id;
+              const isConnectTarget = mainMode === 'map' && mapMode === 'connect' && connectingFrom !== null && connectingFrom !== node.Id;
+              
+              // Find if node is part of current task
+              const taskStageIndices = mainMode === 'task' && selectedTemplate 
+                ? selectedTemplate.Stages.map((s, i) => s.TargetNodeId === node.Id ? i + 1 : -1).filter(i => i !== -1)
+                : [];
+
+              const isHoveredZone = hoveredZoneName === node.ZoneName && node.ZoneName !== '';
+
+              return (
+                <div key={node.Id} className="absolute" style={{ left: node.X, top: node.Y }}>
+                  {/* Zone Halo */}
+                  {node.ZoneName && (
+                    <div 
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none transition-all duration-300 ${isHoveredZone ? 'animate-[zoneBreathe_1.5s_ease-in-out_infinite] z-10' : 'z-0'}`}
+                      style={{
+                        width: NODE_RADIUS * 3.5,
+                        height: NODE_RADIUS * 3.5,
+                        backgroundColor: getZoneColor(node.ZoneName, isHoveredZone ? 0.6 : 0.2),
+                        border: `2px dashed ${getZoneColor(node.ZoneName, 0.8)}`,
+                        boxShadow: isHoveredZone ? `0 0 20px ${getZoneColor(node.ZoneName, 0.8)}` : 'none'
+                      }}
+                    />
+                  )}
+
+                  {/* Task Sequence Badges */}
+                  {taskStageIndices.length > 0 && (
+                    <div className="absolute -top-6 -right-6 flex gap-1 z-40">
+                      {taskStageIndices.map(seq => (
+                        <div key={seq} className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shadow-md border border-blue-400">
+                          {seq}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div
+                    className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-xs font-bold shadow-lg transition-transform ${
+                      mainMode === 'map' && isDraggingSelection && selectedNodeIds.includes(node.Id) ? 'scale-110 z-50 cursor-grabbing' : 
+                      mainMode === 'map' ? 'hover:scale-110 z-20 cursor-grab' : 'hover:scale-110 z-20 cursor-pointer'
+                    } ${isConnecting ? 'ring-4 ring-blue-500 ring-opacity-50' : ''}
+                      ${isConnectTarget ? 'hover:ring-4 hover:ring-green-500 hover:ring-opacity-50' : ''}
+                      ${taskStageIndices.length > 0 ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-neutral-900' : ''}
+                      ${selectedNodeIds.includes(node.Id) ? 'ring-4 ring-white ring-opacity-80' : ''}
+                    `}
+                    style={{
+                      width: NODE_RADIUS * 2,
+                      height: NODE_RADIUS * 2,
+                      backgroundColor: NODE_COLORS[node.NodeType],
+                      color: ['Charging', 'Buffer'].includes(node.NodeType) ? '#000' : '#fff',
+                      border: '2px solid rgba(255,255,255,0.2)'
+                    }}
+                    onMouseDown={(e) => handleNodeMouseDown(e, node.Id)}
+                    onClick={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => handleNodeDoubleClick(e, node)}
+                  >
+                    {node.Id}
+                  </div>
+                  
+                  {/* Node Label */}
+                  <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 whitespace-nowrap bg-neutral-800/90 px-2 py-0.5 rounded text-[10px] text-neutral-300 pointer-events-none backdrop-blur-sm border border-neutral-700 shadow-sm">
+                    {node.ZoneName}
+                  </div>
+                </div>
+              );
+            })}
+            </div>
+          </div>
+
+          {/* Zoom Controls */}
+          <div className="absolute bottom-6 right-6 flex items-center bg-neutral-800 border border-neutral-700 rounded-lg shadow-lg overflow-hidden z-20">
+            <button onClick={() => setScale(s => Math.max(0.2, s - 0.1))} className="p-2 hover:bg-neutral-700 text-neutral-300 transition-colors" title="缩小">
+              <ZoomOut size={18} />
+            </button>
+            <div className="px-3 py-2 text-xs font-medium text-neutral-300 border-x border-neutral-700 min-w-[60px] text-center">
+              {Math.round(scale * 100)}%
+            </div>
+            <button onClick={() => setScale(s => Math.min(3, s + 0.1))} className="p-2 hover:bg-neutral-700 text-neutral-300 transition-colors" title="放大">
+              <ZoomIn size={18} />
+            </button>
+            <button onClick={() => setScale(1)} className="p-2 hover:bg-neutral-700 text-neutral-300 transition-colors border-l border-neutral-700" title="重置缩放">
+              <Maximize size={18} />
+            </button>
+          </div>
+        </main>
+
+        {/* Right Sidebar */}
+        <aside className="w-80 bg-neutral-800 border-l border-neutral-700 flex flex-col z-20 shadow-[-4px_0_15px_rgba(0,0,0,0.2)] shrink-0">
+          {mainMode === 'map' ? (
+            // Map Edit Mode Sidebar
+            <>
+              <div className="p-4 border-b border-neutral-700 bg-neutral-800/50">
+                <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                  <MapIcon size={16} className="text-neutral-400" />
+                  地图编辑工具
+                </h2>
+              </div>
+
+              <div className="p-4 flex-1 overflow-y-auto space-y-6">
+                <div className="space-y-2">
+                  <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-2">基础操作</h3>
+                  <button
+                    onClick={() => {
+                      setMapMode('select');
+                      setEditingConnection(null);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                      mapMode === 'select' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
+                    }`}
+                  >
+                    <MousePointer2 size={16} />
+                    <span className="text-sm font-medium">选择 / 拖拽</span>
+                  </button>
+                  <button
+                    onClick={() => setMapMode('connect')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                      mapMode === 'connect' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
+                    }`}
+                  >
+                    <LinkIcon size={16} />
+                    <span className="text-sm font-medium">连线模式</span>
+                  </button>
+                  
+                  <div className={`rounded-md transition-colors border ${mapMode === 'paint_zone' ? 'bg-neutral-700/50 border-neutral-600' : 'border-transparent'}`}>
+                    <button
+                      onClick={() => setMapMode('paint_zone')}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                        mapMode === 'paint_zone' ? 'text-white' : 'hover:bg-neutral-700/50 text-neutral-400'
+                      }`}
+                    >
+                      <Brush size={16} />
+                      <span className="text-sm font-medium">管制区刷子</span>
+                    </button>
+                    {mapMode === 'paint_zone' && (
+                      <div className="px-3 pb-3 pt-1">
+                        <input
+                          type="text"
+                          value={paintZoneName}
+                          onChange={e => setPaintZoneName(e.target.value)}
+                          placeholder="输入区域名称..."
+                          className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none"
+                          list="global-zone-list"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-2 flex items-center gap-2">
+                    <Plus size={14} /> 添加节点
+                  </h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    {(Object.keys(NODE_COLORS) as NodeType[]).map(type => (
+                      <button
+                        key={type}
+                        onClick={() => {
+                          setMapMode('add');
+                          setSelectedNodeType(type);
+                        }}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-md border transition-all ${
+                          mapMode === 'add' && selectedNodeType === type
+                            ? 'border-blue-500 bg-blue-500/10'
+                            : 'border-neutral-700 hover:bg-neutral-700/50 bg-neutral-800'
+                        }`}
+                      >
+                        <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: NODE_COLORS[type] }} />
+                        <span className="text-sm font-medium text-neutral-300">{type}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-2 flex items-center gap-2">
+                    <MapIcon size={14} /> 环境标识 (不影响核心数据)
+                  </h3>
+                  <button
+                    onClick={() => setMapMode('draw_line')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                      mapMode === 'draw_line' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
+                    }`}
+                  >
+                    <Minus size={16} />
+                    <span className="text-sm font-medium">画墙 (线段)</span>
+                  </button>
+                  <button
+                    onClick={() => setMapMode('draw_rect')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                      mapMode === 'draw_rect' ? 'bg-neutral-700 text-white border border-neutral-600' : 'hover:bg-neutral-700/50 text-neutral-400 border border-transparent'
+                    }`}
+                  >
+                    <Square size={16} />
+                    <span className="text-sm font-medium">画区域 (矩形)</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-2 flex items-center gap-2">
+                    <Settings size={14} /> 地图设置
+                  </h3>
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1.5 flex justify-between">
+                      <span>比例尺 (像素/米)</span>
+                      <span className="text-blue-400 font-mono">{pixelsPerMeter} px/m</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="500"
+                      step="10"
+                      value={pixelsPerMeter}
+                      onChange={(e) => setPixelsPerMeter(parseInt(e.target.value))}
+                      className="w-full accent-blue-500"
+                    />
+                    <p className="text-[10px] text-neutral-500 mt-1">
+                      用于连线时自动计算物理距离。
+                    </p>
+                  </div>
+                </div>
+
+                {/* Connection Editing Panel */}
+                {mainMode === 'map' && mapMode === 'select' && editingConnection && (
+                  <div className="p-3 bg-neutral-800 border border-blue-500/50 rounded-lg shadow-lg relative">
+                    <button 
+                      onClick={() => setEditingConnection(null)}
+                      className="absolute top-2 right-2 text-neutral-400 hover:text-white"
+                    >
+                      <X size={14} />
+                    </button>
+                    <h3 className="text-xs font-semibold text-blue-400 mb-3 flex items-center gap-2">
+                      <Route size={14} />
+                      编辑连线长度
+                    </h3>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex-1 text-center bg-neutral-900 rounded py-1 border border-neutral-700">
+                        <span className="text-[10px] text-neutral-500 block mb-0.5">起点</span>
+                        <span className="text-xs font-mono text-white">{editingConnection.from}</span>
+                      </div>
+                      <ChevronRight size={14} className="text-neutral-500" />
+                      <div className="flex-1 text-center bg-neutral-900 rounded py-1 border border-neutral-700">
+                        <span className="text-[10px] text-neutral-500 block mb-0.5">终点</span>
+                        <span className="text-xs font-mono text-white">{editingConnection.to}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-neutral-400 mb-1">物理距离 (米)</label>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          value={nodes.find(n => n.Id === editingConnection.from)?.ConnectedNodeDistances[editingConnection.to.toString()] || 0}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val) && val > 0) {
+                              setNodes(nodes.map(n => {
+                                if (n.Id === editingConnection.from) {
+                                  return {
+                                    ...n,
+                                    ConnectedNodeDistances: {
+                                      ...n.ConnectedNodeDistances,
+                                      [editingConnection.to.toString()]: val
+                                    }
+                                  };
+                                }
+                                return n;
+                              }));
+                            }
+                          }}
+                          className="flex-1 w-0 bg-neutral-900 border border-neutral-600 rounded px-2 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
+                        />
+                        <button
+                          onClick={() => {
+                            const fromNode = nodes.find(n => n.Id === editingConnection.from);
+                            const toNode = nodes.find(n => n.Id === editingConnection.to);
+                            if (fromNode && toNode) {
+                              const dist = Math.round((Math.sqrt(Math.pow(fromNode.X - toNode.X, 2) + Math.pow(fromNode.Y - toNode.Y, 2)) / pixelsPerMeter) * 10) / 10;
+                              setNodes(nodes.map(n => {
+                                if (n.Id === editingConnection.from) {
+                                  return {
+                                    ...n,
+                                    ConnectedNodeDistances: {
+                                      ...n.ConnectedNodeDistances,
+                                      [editingConnection.to.toString()]: dist
+                                    }
+                                  };
+                                }
+                                return n;
+                              }));
+                            }
+                          }}
+                          className="px-2 py-1 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded hover:bg-blue-600/40 transition-colors text-[10px] whitespace-nowrap"
+                          title="按当前比例尺重新计算"
+                        >
+                          重算
+                        </button>
+                        <button
+                          onClick={() => {
+                            removeConnection(editingConnection.from, editingConnection.to);
+                            setEditingConnection(null);
+                          }}
+                          className="px-2 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded hover:bg-red-500/20 transition-colors"
+                          title="删除连线"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t border-neutral-700 bg-neutral-900/30">
+                <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-2 flex items-center gap-2">
+                  <Info size={14} /> 操作说明
+                </h3>
+                <ul className="text-[11px] text-neutral-400 space-y-1.5 list-disc pl-4">
+                  <li><b>添加:</b> 选择类型后点击网格空白处。</li>
+                  <li><b>选择/拖拽:</b> "选择"模式下框选或Shift+点击多选，按住选中节点拖动。按Delete键删除选中。</li>
+                  <li><b>连线:</b> "连线"模式下依次点击起点和终点。</li>
+                  <li><b>刷子:</b> "管制区刷子"模式下点击节点批量涂装。</li>
+                  <li><b>标识:</b> 选择画墙/画区域后，在画布上拖拽绘制。双击删除。</li>
+                  <li><b>编辑:</b> 双击节点修改属性或删除。</li>
+                  <li><b>删线:</b> "选择"模式下点击连线即可删除。</li>
+                </ul>
+              </div>
+
+              <div className="p-4 border-t border-neutral-700 bg-neutral-800/50 max-h-48 overflow-y-auto shrink-0">
+                <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold mb-2 flex items-center gap-2">
+                  <ListFilter size={14} /> 管制区列表 ({uniqueZones.length})
+                </h3>
+                {uniqueZones.length === 0 ? (
+                  <div className="text-[11px] text-neutral-500">当前地图无管制区</div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {uniqueZones.map(zone => (
+                      <button
+                        key={zone}
+                        onMouseEnter={() => setHoveredZoneName(zone)}
+                        onMouseLeave={() => setHoveredZoneName(null)}
+                        onClick={() => {
+                          setPaintZoneName(zone);
+                          setMapMode('paint_zone');
+                        }}
+                        className="px-2 py-1 rounded text-[10px] font-medium transition-all border hover:scale-105"
+                        style={{
+                          backgroundColor: getZoneColor(zone, 0.2),
+                          borderColor: getZoneColor(zone, 0.5),
+                          color: '#fff'
+                        }}
+                      >
+                        {zone}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            // Task Orchestration Mode Sidebar
+            <>
+              <div className="p-4 border-b border-neutral-700 bg-neutral-800/50 flex justify-between items-center">
+                <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Route size={16} className="text-blue-400" />
+                  任务模板列表
+                </h2>
+                <button
+                  onClick={createNewTemplate}
+                  className="p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
+                  title="新建任务模板"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto flex flex-col">
+                {/* Template List */}
+                <div className="p-2 space-y-1 border-b border-neutral-700 max-h-[30%] overflow-y-auto bg-neutral-900/30">
+                  {templates.length === 0 ? (
+                    <div className="text-xs text-neutral-500 text-center py-4">暂无任务模板，请点击右上角新建</div>
+                  ) : (
+                    templates.map(t => (
+                      <button
+                        key={t.TemplateId}
+                        onClick={() => setSelectedTemplateId(t.TemplateId)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded text-left transition-colors ${
+                          selectedTemplateId === t.TemplateId ? 'bg-blue-600/20 border border-blue-500/50 text-white' : 'hover:bg-neutral-700 text-neutral-400 border border-transparent'
+                        }`}
+                      >
+                        <span className="text-sm font-medium truncate pr-2">{t.TemplateName}</span>
+                        <ChevronRight size={14} className={selectedTemplateId === t.TemplateId ? 'text-blue-400' : 'text-neutral-600'} />
+                      </button>
+                    ))
+                  )}
+                </div>
+
+                {/* Selected Template Editor */}
+                {selectedTemplate ? (
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="p-4 border-b border-neutral-700 space-y-3 shrink-0">
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider text-neutral-500 font-semibold mb-1">Template ID</label>
+                        <input
+                          type="text"
+                          value={selectedTemplate.TemplateId}
+                          onChange={e => updateTemplate(selectedTemplate.TemplateId, { TemplateId: e.target.value })}
+                          className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-xs text-neutral-300 focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider text-neutral-500 font-semibold mb-1">模板名称</label>
+                        <input
+                          type="text"
+                          value={selectedTemplate.TemplateName}
+                          onChange={e => updateTemplate(selectedTemplate.TemplateId, { TemplateName: e.target.value })}
+                          className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1.5 text-sm font-medium text-white focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      <div className="flex justify-end pt-1">
+                        <button
+                          onClick={() => deleteTemplate(selectedTemplate.TemplateId)}
+                          className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+                        >
+                          <Trash2 size={12} /> 删除此模板
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 bg-neutral-900/20">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">执行阶段 (Stages)</h3>
+                        <span className="text-[10px] text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">
+                          共 {selectedTemplate.Stages.length} 步
+                        </span>
+                      </div>
+                      
+                      {selectedTemplate.Stages.length === 0 ? (
+                        <div className="text-xs text-neutral-500 text-center py-8 border border-dashed border-neutral-700 rounded-lg">
+                          请在左侧地图上依次点击节点<br/>来编排任务路径
+                        </div>
+                      ) : (
+                        <div className="space-y-3 relative before:absolute before:inset-y-0 before:left-3.5 before:w-px before:bg-neutral-700">
+                          {selectedTemplate.Stages.map((stage, index) => (
+                            <div key={index} className="relative pl-10">
+                              <div className="absolute left-0 top-1.5 w-7 h-7 rounded-full bg-neutral-800 border-2 border-neutral-600 flex items-center justify-center text-xs font-bold text-neutral-400 z-10">
+                                {index + 1}
+                              </div>
+                              <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-3 space-y-2 shadow-sm">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="text-xs font-mono text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded">
+                                    {stage.TargetNodeId === 0 ? 'Dynamic Target' : `Node ${stage.TargetNodeId}`}
+                                  </div>
+                                  <button onClick={() => removeStage(selectedTemplate.TemplateId, index)} className="text-neutral-500 hover:text-red-400">
+                                    <X size={14} />
+                                  </button>
+                                </div>
+
+                                <div className="flex items-center gap-2 mb-2">
+                                  <label className="text-[10px] text-neutral-500">目标类型:</label>
+                                  <select
+                                    value={stage.TargetNodeId === 0 ? 'dynamic' : 'static'}
+                                    onChange={e => {
+                                      if (e.target.value === 'dynamic') {
+                                        updateStage(selectedTemplate.TemplateId, index, { TargetNodeId: 0, DynamicTargetType: 'Unload', CandidateNodeIds: [] });
+                                      } else {
+                                        updateStage(selectedTemplate.TemplateId, index, { TargetNodeId: nodes[0]?.Id || 1, DynamicTargetType: undefined, CandidateNodeIds: undefined });
+                                      }
+                                    }}
+                                    className="bg-neutral-900 border border-neutral-700 rounded px-1 py-0.5 text-[10px] text-white focus:border-blue-500 focus:outline-none"
+                                  >
+                                    <option value="static">指定点位 (Static)</option>
+                                    <option value="dynamic">动态点位 (Dynamic)</option>
+                                  </select>
+                                  
+                                  {stage.TargetNodeId !== 0 && (
+                                    <>
+                                      <label className="text-[10px] text-neutral-500 ml-2">点位 ID:</label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={stage.TargetNodeId}
+                                        onChange={e => updateStage(selectedTemplate.TemplateId, index, { TargetNodeId: parseInt(e.target.value) || 1 })}
+                                        className="w-16 bg-neutral-900 border border-neutral-700 rounded px-1 py-0.5 text-[10px] text-white focus:border-blue-500 focus:outline-none"
+                                      />
+                                    </>
+                                  )}
+                                </div>
+
+                                {stage.TargetNodeId === 0 && (
+                                  <div className="bg-blue-900/20 p-2 rounded border border-blue-800/50 mb-2 space-y-2">
+                                    <div>
+                                      <label className="block text-[10px] text-blue-400 mb-0.5">动态点位类型</label>
+                                      <select
+                                        value={stage.DynamicTargetType || 'Unload'}
+                                        onChange={e => updateStage(selectedTemplate.TemplateId, index, { 
+                                          DynamicTargetType: e.target.value as NodeType,
+                                          CandidateNodeIds: [] 
+                                        })}
+                                        className="w-full bg-neutral-900 border border-neutral-700 rounded px-1 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
+                                      >
+                                        {(Object.keys(NODE_COLORS) as NodeType[]).map(type => (
+                                          <option key={type} value={type}>{type}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] text-blue-400 mb-1">候选点位 (点击选择)</label>
+                                      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1 bg-neutral-900/50 rounded border border-neutral-800">
+                                        {nodes.filter(n => n.NodeType === (stage.DynamicTargetType || 'Unload')).length === 0 ? (
+                                          <span className="text-[10px] text-neutral-500 italic">地图中没有该类型的点位</span>
+                                        ) : (
+                                          nodes.filter(n => n.NodeType === (stage.DynamicTargetType || 'Unload')).map(n => {
+                                            const isSelected = (stage.CandidateNodeIds || []).includes(n.Id);
+                                            return (
+                                              <button
+                                                key={n.Id}
+                                                onClick={() => {
+                                                  const current = stage.CandidateNodeIds || [];
+                                                  const next = isSelected 
+                                                    ? current.filter(id => id !== n.Id)
+                                                    : [...current, n.Id];
+                                                  updateStage(selectedTemplate.TemplateId, index, { CandidateNodeIds: next });
+                                                }}
+                                                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${
+                                                  isSelected 
+                                                    ? 'bg-blue-500 text-white border border-blue-400' 
+                                                    : 'bg-neutral-800 text-neutral-400 border border-neutral-600 hover:bg-neutral-700'
+                                                }`}
+                                              >
+                                                {n.Id} {n.ZoneName ? `(${n.ZoneName})` : ''}
+                                              </button>
+                                            );
+                                          })
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                <div>
+                                  <label className="block text-[10px] text-neutral-500 mb-0.5">阶段名称</label>
+                                  <input
+                                    type="text"
+                                    value={stage.StageName}
+                                    onChange={e => updateStage(selectedTemplate.TemplateId, index, { StageName: e.target.value })}
+                                    className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
+                                  />
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-[10px] text-neutral-500 mb-0.5">动作指令</label>
+                                    <select
+                                      value={stage.ActionCode}
+                                      onChange={e => updateStage(selectedTemplate.TemplateId, index, { ActionCode: e.target.value as ActionCode })}
+                                      className="w-full bg-neutral-900 border border-neutral-700 rounded px-1 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
+                                    >
+                                      {ACTION_CODES.map(code => (
+                                        <option key={code} value={code}>{code}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-neutral-500 mb-0.5">等待时间 (ms)</label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="100"
+                                      value={stage.WaitTimeMs}
+                                      onChange={e => updateStage(selectedTemplate.TemplateId, index, { WaitTimeMs: parseInt(e.target.value) || 0 })}
+                                      className="w-full bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      <div className="mt-4 pt-4 border-t border-neutral-700/50">
+                        <button
+                          onClick={() => {
+                            const newStage: TaskStage = {
+                              TargetNodeId: 0,
+                              ActionCode: 'None',
+                              WaitTimeMs: 0,
+                              StageName: '动态前往目标',
+                              DynamicTargetType: 'Unload',
+                              CandidateNodeIds: []
+                            };
+                            setTemplates(templates.map(t => 
+                              t.TemplateId === selectedTemplate.TemplateId 
+                                ? { ...t, Stages: [...t.Stages, newStage] }
+                                : t
+                            ));
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 text-neutral-300 rounded-md transition-colors text-xs font-medium"
+                        >
+                          <Plus size={14} />
+                          添加动态阶段
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center p-6 text-center text-neutral-500 text-sm">
+                    请在上方选择一个任务模板，<br/>或点击 "+" 新建
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </aside>
+      </div>
+
+      {/* Edit Node Modal (Only in Map Mode) */}
+      {mainMode === 'map' && editingNodeId !== null && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center" onClick={() => setEditingNodeId(null)}>
+          <div className="bg-neutral-800 border border-neutral-700 rounded-lg shadow-2xl w-80 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-neutral-700 flex justify-between items-center bg-neutral-900/50">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                <Settings size={16} /> 编辑节点 {editingNodeId}
+              </h3>
+              <button onClick={() => setEditingNodeId(null)} className="text-neutral-400 hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-400 mb-1">区域名称 (Zone Name)</label>
+                <input
+                  type="text"
+                  value={editZoneName}
+                  onChange={e => setEditZoneName(e.target.value)}
+                  list="global-zone-list"
+                  className="w-full bg-neutral-900 border border-neutral-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') saveNodeEdit();
+                    if (e.key === 'Escape') setEditingNodeId(null);
+                  }}
+                />
+              </div>
+              
+              <div className="pt-2 flex justify-between items-center">
+                <button
+                  onClick={() => deleteNode(editingNodeId)}
+                  className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-400/10 transition-colors"
+                >
+                  <Trash2 size={14} /> 删除节点
+                </button>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingNodeId(null)}
+                    className="px-3 py-1.5 text-xs font-medium text-neutral-300 hover:text-white transition-colors"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={saveNodeEdit}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-md transition-colors"
+                  >
+                    保存修改
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global CSS for animations */}
+      <datalist id="global-zone-list">
+        {uniqueZones.map(zone => (
+          <option key={zone} value={zone} />
+        ))}
+      </datalist>
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes dash {
+          to {
+            stroke-dashoffset: -12;
+          }
+        }
+        @keyframes zoneBreathe {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+          50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+        }
+      `}} />
+    </div>
+  );
+}
