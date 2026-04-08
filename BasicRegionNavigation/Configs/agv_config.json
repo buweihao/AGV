@@ -1,967 +1,969 @@
 {
   "MapNodes": [
     {
-      "Id": 1,
-      "X": 200,
-      "Y": 100,
-      "ZoneName": "Z1",
-      "NodeType": "Charging",
+      "ConnectedNodeDistances": {
+        "15": 1
+      },
       "ConnectedNodeIds": [
         15
       ],
-      "ConnectedNodeDistances": {
-        "15": 1
-      }
+      "Id": 1,
+      "NodeType": "Charging",
+      "X": 200,
+      "Y": 100,
+      "ZoneName": "Z1"
     },
     {
-      "Id": 2,
-      "X": 300,
-      "Y": 100,
-      "ZoneName": "Z2",
-      "NodeType": "Charging",
+      "ConnectedNodeDistances": {
+        "16": 1
+      },
       "ConnectedNodeIds": [
         16
       ],
-      "ConnectedNodeDistances": {
-        "16": 1
-      }
+      "Id": 2,
+      "NodeType": "Charging",
+      "X": 300,
+      "Y": 100,
+      "ZoneName": "Z2"
     },
     {
-      "Id": 3,
-      "X": 400,
-      "Y": 100,
-      "ZoneName": "Z3",
-      "NodeType": "Charging",
+      "ConnectedNodeDistances": {
+        "17": 1
+      },
       "ConnectedNodeIds": [
         17
       ],
-      "ConnectedNodeDistances": {
-        "17": 1
-      }
+      "Id": 3,
+      "NodeType": "Charging",
+      "X": 400,
+      "Y": 100,
+      "ZoneName": "Z3"
     },
     {
-      "Id": 4,
-      "X": 500,
-      "Y": 100,
-      "ZoneName": "Z4",
-      "NodeType": "Charging",
+      "ConnectedNodeDistances": {
+        "18": 1
+      },
       "ConnectedNodeIds": [
         18
       ],
-      "ConnectedNodeDistances": {
-        "18": 1
-      }
+      "Id": 4,
+      "NodeType": "Charging",
+      "X": 500,
+      "Y": 100,
+      "ZoneName": "Z4"
     },
     {
-      "Id": 5,
-      "X": 600,
-      "Y": 100,
-      "ZoneName": "Z5",
-      "NodeType": "Charging",
+      "ConnectedNodeDistances": {
+        "19": 1
+      },
       "ConnectedNodeIds": [
         19
       ],
-      "ConnectedNodeDistances": {
-        "19": 1
-      }
+      "Id": 5,
+      "NodeType": "Charging",
+      "X": 600,
+      "Y": 100,
+      "ZoneName": "Z5"
     },
     {
-      "Id": 6,
-      "X": 700,
-      "Y": 100,
-      "ZoneName": "Z6",
-      "NodeType": "Charging",
+      "ConnectedNodeDistances": {
+        "20": 1
+      },
       "ConnectedNodeIds": [
         20
       ],
-      "ConnectedNodeDistances": {
-        "20": 1
-      }
+      "Id": 6,
+      "NodeType": "Charging",
+      "X": 700,
+      "Y": 100,
+      "ZoneName": "Z6"
     },
     {
-      "Id": 7,
-      "X": 800,
-      "Y": 100,
-      "ZoneName": "Z7",
-      "NodeType": "Charging",
+      "ConnectedNodeDistances": {
+        "21": 1
+      },
       "ConnectedNodeIds": [
         21
       ],
-      "ConnectedNodeDistances": {
-        "21": 1
-      }
+      "Id": 7,
+      "NodeType": "Charging",
+      "X": 800,
+      "Y": 100,
+      "ZoneName": "Z7"
     },
     {
-      "Id": 8,
-      "X": 900,
-      "Y": 100,
-      "ZoneName": "Z8",
-      "NodeType": "Charging",
+      "ConnectedNodeDistances": {
+        "22": 1
+      },
       "ConnectedNodeIds": [
         22
       ],
-      "ConnectedNodeDistances": {
-        "22": 1
-      }
+      "Id": 8,
+      "NodeType": "Charging",
+      "X": 900,
+      "Y": 100,
+      "ZoneName": "Z8"
     },
     {
-      "Id": 9,
-      "X": 1000,
-      "Y": 100,
-      "ZoneName": "Z9",
-      "NodeType": "Charging",
+      "ConnectedNodeDistances": {
+        "23": 1
+      },
       "ConnectedNodeIds": [
         23
       ],
-      "ConnectedNodeDistances": {
-        "23": 1
-      }
+      "Id": 9,
+      "NodeType": "Charging",
+      "X": 1000,
+      "Y": 100,
+      "ZoneName": "Z9"
     },
     {
-      "Id": 10,
-      "X": 1100,
-      "Y": 100,
-      "ZoneName": "Z10",
-      "NodeType": "Charging",
+      "ConnectedNodeDistances": {
+        "24": 1
+      },
       "ConnectedNodeIds": [
         24
       ],
-      "ConnectedNodeDistances": {
-        "24": 1
-      }
+      "Id": 10,
+      "NodeType": "Charging",
+      "X": 1100,
+      "Y": 100,
+      "ZoneName": "Z10"
     },
     {
-      "Id": 11,
-      "X": 1250,
-      "Y": 100,
-      "ZoneName": "Z11",
-      "NodeType": "Buffer",
+      "ConnectedNodeDistances": {
+        "25": 1
+      },
       "ConnectedNodeIds": [
         25
       ],
-      "ConnectedNodeDistances": {
-        "25": 1
-      }
+      "Id": 11,
+      "NodeType": "Buffer",
+      "X": 1250,
+      "Y": 100,
+      "ZoneName": "Z11"
     },
     {
-      "Id": 12,
-      "X": 1350,
-      "Y": 100,
-      "ZoneName": "Z12",
-      "NodeType": "Buffer",
+      "ConnectedNodeDistances": {
+        "26": 1
+      },
       "ConnectedNodeIds": [
         26
       ],
-      "ConnectedNodeDistances": {
-        "26": 1
-      }
+      "Id": 12,
+      "NodeType": "Buffer",
+      "X": 1350,
+      "Y": 100,
+      "ZoneName": "Z12"
     },
     {
-      "Id": 13,
-      "X": 1450,
-      "Y": 100,
-      "ZoneName": "Z13",
-      "NodeType": "Buffer",
+      "ConnectedNodeDistances": {
+        "27": 1
+      },
       "ConnectedNodeIds": [
         27
       ],
-      "ConnectedNodeDistances": {
-        "27": 1
-      }
+      "Id": 13,
+      "NodeType": "Buffer",
+      "X": 1450,
+      "Y": 100,
+      "ZoneName": "Z13"
     },
     {
-      "Id": 14,
-      "X": 1550,
-      "Y": 100,
-      "ZoneName": "Z14",
-      "NodeType": "Buffer",
+      "ConnectedNodeDistances": {
+        "28": 1
+      },
       "ConnectedNodeIds": [
         28
       ],
-      "ConnectedNodeDistances": {
-        "28": 1
-      }
+      "Id": 14,
+      "NodeType": "Buffer",
+      "X": 1550,
+      "Y": 100,
+      "ZoneName": "Z14"
     },
     {
-      "Id": 15,
-      "X": 200,
-      "Y": 200,
-      "ZoneName": "Z15",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "1": 1,
+        "16": 1
+      },
       "ConnectedNodeIds": [
         16,
         1
       ],
-      "ConnectedNodeDistances": {
-        "1": 1,
-        "16": 1
-      }
+      "Id": 15,
+      "NodeType": "Normal",
+      "X": 200,
+      "Y": 200,
+      "ZoneName": "Z15"
     },
     {
-      "Id": 16,
-      "X": 300,
-      "Y": 200,
-      "ZoneName": "Z16",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "2": 1,
+        "17": 1
+      },
       "ConnectedNodeIds": [
         17,
         2
       ],
-      "ConnectedNodeDistances": {
-        "2": 1,
-        "17": 1
-      }
+      "Id": 16,
+      "NodeType": "Normal",
+      "X": 300,
+      "Y": 200,
+      "ZoneName": "Z16"
     },
     {
-      "Id": 17,
-      "X": 400,
-      "Y": 200,
-      "ZoneName": "Z17",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "3": 1,
+        "18": 1
+      },
       "ConnectedNodeIds": [
         18,
         3
       ],
-      "ConnectedNodeDistances": {
-        "3": 1,
-        "18": 1
-      }
+      "Id": 17,
+      "NodeType": "Normal",
+      "X": 400,
+      "Y": 200,
+      "ZoneName": "Z17"
     },
     {
-      "Id": 18,
-      "X": 500,
-      "Y": 200,
-      "ZoneName": "Z18",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "4": 1,
+        "19": 1
+      },
       "ConnectedNodeIds": [
         19,
         4
       ],
-      "ConnectedNodeDistances": {
-        "4": 1,
-        "19": 1
-      }
+      "Id": 18,
+      "NodeType": "Normal",
+      "X": 500,
+      "Y": 200,
+      "ZoneName": "Z18"
     },
     {
-      "Id": 19,
-      "X": 600,
-      "Y": 200,
-      "ZoneName": "Z19",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "5": 1,
+        "20": 1
+      },
       "ConnectedNodeIds": [
         20,
         5
       ],
-      "ConnectedNodeDistances": {
-        "5": 1,
-        "20": 1
-      }
+      "Id": 19,
+      "NodeType": "Normal",
+      "X": 600,
+      "Y": 200,
+      "ZoneName": "Z19"
     },
     {
-      "Id": 20,
-      "X": 700,
-      "Y": 200,
-      "ZoneName": "Z20",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "6": 1,
+        "21": 1
+      },
       "ConnectedNodeIds": [
         21,
         6
       ],
-      "ConnectedNodeDistances": {
-        "6": 1,
-        "21": 1
-      }
+      "Id": 20,
+      "NodeType": "Normal",
+      "X": 700,
+      "Y": 200,
+      "ZoneName": "Z20"
     },
     {
-      "Id": 21,
-      "X": 800,
-      "Y": 200,
-      "ZoneName": "Z21",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "7": 1,
+        "22": 1
+      },
       "ConnectedNodeIds": [
         22,
         7
       ],
-      "ConnectedNodeDistances": {
-        "7": 1,
-        "22": 1
-      }
+      "Id": 21,
+      "NodeType": "Normal",
+      "X": 800,
+      "Y": 200,
+      "ZoneName": "Z21"
     },
     {
-      "Id": 22,
-      "X": 900,
-      "Y": 200,
-      "ZoneName": "Z22",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "8": 1,
+        "23": 1
+      },
       "ConnectedNodeIds": [
         23,
         8
       ],
-      "ConnectedNodeDistances": {
-        "8": 1,
-        "23": 1
-      }
+      "Id": 22,
+      "NodeType": "Normal",
+      "X": 900,
+      "Y": 200,
+      "ZoneName": "Z22"
     },
     {
-      "Id": 23,
-      "X": 1000,
-      "Y": 200,
-      "ZoneName": "Z23",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "9": 1,
+        "24": 1
+      },
       "ConnectedNodeIds": [
         24,
         9
       ],
-      "ConnectedNodeDistances": {
-        "9": 1,
-        "24": 1
-      }
+      "Id": 23,
+      "NodeType": "Normal",
+      "X": 1000,
+      "Y": 200,
+      "ZoneName": "Z23"
     },
     {
-      "Id": 24,
-      "X": 1100,
-      "Y": 200,
-      "ZoneName": "Z24",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "10": 1,
+        "25": 1.5
+      },
       "ConnectedNodeIds": [
         10,
         25
       ],
-      "ConnectedNodeDistances": {
-        "10": 1,
-        "25": 1.5
-      }
+      "Id": 24,
+      "NodeType": "Normal",
+      "X": 1100,
+      "Y": 200,
+      "ZoneName": "Z24"
     },
     {
-      "Id": 25,
-      "X": 1250,
-      "Y": 200,
-      "ZoneName": "Z25",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "11": 1,
+        "26": 1
+      },
       "ConnectedNodeIds": [
         26,
         11
       ],
-      "ConnectedNodeDistances": {
-        "11": 1,
-        "26": 1
-      }
+      "Id": 25,
+      "NodeType": "Normal",
+      "X": 1250,
+      "Y": 200,
+      "ZoneName": "Z25"
     },
     {
-      "Id": 26,
-      "X": 1350,
-      "Y": 200,
-      "ZoneName": "Z26",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "12": 1,
+        "27": 1
+      },
       "ConnectedNodeIds": [
         27,
         12
       ],
-      "ConnectedNodeDistances": {
-        "12": 1,
-        "27": 1
-      }
+      "Id": 26,
+      "NodeType": "Normal",
+      "X": 1350,
+      "Y": 200,
+      "ZoneName": "Z26"
     },
     {
-      "Id": 27,
-      "X": 1450,
-      "Y": 200,
-      "ZoneName": "Z27",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "13": 1,
+        "28": 1
+      },
       "ConnectedNodeIds": [
         28,
         13
       ],
-      "ConnectedNodeDistances": {
-        "13": 1,
-        "28": 1
-      }
+      "Id": 27,
+      "NodeType": "Normal",
+      "X": 1450,
+      "Y": 200,
+      "ZoneName": "Z27"
     },
     {
-      "Id": 28,
-      "X": 1550,
-      "Y": 200,
-      "ZoneName": "Z28",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "14": 1,
+        "32": 2.5
+      },
       "ConnectedNodeIds": [
         14,
         32
       ],
-      "ConnectedNodeDistances": {
-        "14": 1,
-        "32": 2.5
-      }
+      "Id": 28,
+      "NodeType": "Normal",
+      "X": 1550,
+      "Y": 200,
+      "ZoneName": "Z28"
     },
     {
-      "Id": 29,
-      "X": 300,
-      "Y": 350,
-      "ZoneName": "Z29",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "15": 1.8
+      },
       "ConnectedNodeIds": [
         15
       ],
-      "ConnectedNodeDistances": {
-        "15": 1.8
-      }
+      "Id": 29,
+      "NodeType": "Normal",
+      "X": 300,
+      "Y": 350,
+      "ZoneName": "Z29"
     },
     {
-      "Id": 30,
-      "X": 750,
-      "Y": 350,
-      "ZoneName": "Z30",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "29": 4.5
+      },
       "ConnectedNodeIds": [
         29
       ],
-      "ConnectedNodeDistances": {
-        "29": 4.5
-      }
+      "Id": 30,
+      "NodeType": "Normal",
+      "X": 750,
+      "Y": 350,
+      "ZoneName": "Z30"
     },
     {
-      "Id": 31,
-      "X": 1050,
-      "Y": 350,
-      "ZoneName": "Z31",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "30": 3
+      },
       "ConnectedNodeIds": [
         30
       ],
-      "ConnectedNodeDistances": {
-        "30": 3
-      }
+      "Id": 31,
+      "NodeType": "Normal",
+      "X": 1050,
+      "Y": 350,
+      "ZoneName": "Z31"
     },
     {
-      "Id": 32,
-      "X": 1400,
-      "Y": 400,
-      "ZoneName": "Z32",
-      "NodeType": "Normal",
-      "ConnectedNodeIds": [
-        39
-      ],
       "ConnectedNodeDistances": {
         "39": 4.3
-      }
-    },
-    {
-      "Id": 33,
-      "X": 1050,
-      "Y": 500,
-      "ZoneName": "Z33",
-      "NodeType": "Normal",
+      },
       "ConnectedNodeIds": [
         39
       ],
+      "Id": 32,
+      "NodeType": "Normal",
+      "X": 1400,
+      "Y": 400,
+      "ZoneName": "Z32"
+    },
+    {
       "ConnectedNodeDistances": {
         "39": 1.5
-      }
-    },
-    {
-      "Id": 34,
-      "X": 1100,
-      "Y": 500,
-      "ZoneName": "Z34",
-      "NodeType": "Normal",
+      },
       "ConnectedNodeIds": [
         39
       ],
-      "ConnectedNodeDistances": {
-        "39": 1.6
-      }
+      "Id": 33,
+      "NodeType": "Normal",
+      "X": 1050,
+      "Y": 500,
+      "ZoneName": "Z33"
     },
     {
-      "Id": 35,
-      "X": 350,
-      "Y": 650,
-      "ZoneName": "Z35",
-      "NodeType": "Buffer",
+      "ConnectedNodeDistances": {
+        "39": 1.6
+      },
+      "ConnectedNodeIds": [
+        39
+      ],
+      "Id": 34,
+      "NodeType": "Normal",
+      "X": 1100,
+      "Y": 500,
+      "ZoneName": "Z34"
+    },
+    {
+      "ConnectedNodeDistances": {
+        "40": 1
+      },
       "ConnectedNodeIds": [
         40
       ],
-      "ConnectedNodeDistances": {
-        "40": 1
-      }
+      "Id": 35,
+      "NodeType": "Buffer",
+      "X": 350,
+      "Y": 650,
+      "ZoneName": "Z35"
     },
     {
-      "Id": 36,
-      "X": 450,
-      "Y": 650,
-      "ZoneName": "Z36",
-      "NodeType": "Buffer",
+      "ConnectedNodeDistances": {
+        "41": 1
+      },
       "ConnectedNodeIds": [
         41
       ],
-      "ConnectedNodeDistances": {
-        "41": 1
-      }
+      "Id": 36,
+      "NodeType": "Buffer",
+      "X": 450,
+      "Y": 650,
+      "ZoneName": "Z36"
     },
     {
-      "Id": 37,
-      "X": 550,
-      "Y": 650,
-      "ZoneName": "Z37",
-      "NodeType": "Buffer",
+      "ConnectedNodeDistances": {
+        "42": 1
+      },
       "ConnectedNodeIds": [
         42
       ],
-      "ConnectedNodeDistances": {
-        "42": 1
-      }
+      "Id": 37,
+      "NodeType": "Buffer",
+      "X": 550,
+      "Y": 650,
+      "ZoneName": "Z37"
     },
     {
-      "Id": 38,
-      "X": 650,
-      "Y": 650,
-      "ZoneName": "Z38",
-      "NodeType": "Buffer",
+      "ConnectedNodeDistances": {
+        "43": 1
+      },
       "ConnectedNodeIds": [
         43
       ],
-      "ConnectedNodeDistances": {
-        "43": 1
-      }
+      "Id": 38,
+      "NodeType": "Buffer",
+      "X": 650,
+      "Y": 650,
+      "ZoneName": "Z38"
     },
     {
-      "Id": 39,
-      "X": 1050,
-      "Y": 650,
-      "ZoneName": "Z39",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "33": 1.5,
+        "34": 1.6,
+        "45": 1.1
+      },
       "ConnectedNodeIds": [
         33,
         34,
         45
       ],
-      "ConnectedNodeDistances": {
-        "33": 1.5,
-        "34": 1.6,
-        "45": 1.1
-      }
+      "Id": 39,
+      "NodeType": "Normal",
+      "X": 1050,
+      "Y": 650,
+      "ZoneName": "Z39"
     },
     {
-      "Id": 40,
-      "X": 350,
-      "Y": 750,
-      "ZoneName": "Z40",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "35": 1,
+        "41": 1
+      },
       "ConnectedNodeIds": [
         41,
         35
       ],
-      "ConnectedNodeDistances": {
-        "35": 1,
-        "41": 1
-      }
+      "Id": 40,
+      "NodeType": "Normal",
+      "X": 350,
+      "Y": 750,
+      "ZoneName": "Z40"
     },
     {
-      "Id": 41,
-      "X": 450,
-      "Y": 750,
-      "ZoneName": "Z41",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "36": 1,
+        "42": 1
+      },
       "ConnectedNodeIds": [
         42,
         36
       ],
-      "ConnectedNodeDistances": {
-        "36": 1,
-        "42": 1
-      }
+      "Id": 41,
+      "NodeType": "Normal",
+      "X": 450,
+      "Y": 750,
+      "ZoneName": "Z41"
     },
     {
-      "Id": 42,
-      "X": 550,
-      "Y": 750,
-      "ZoneName": "Z42",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "37": 1,
+        "43": 1
+      },
       "ConnectedNodeIds": [
         43,
         37
       ],
-      "ConnectedNodeDistances": {
-        "37": 1,
-        "43": 1
-      }
+      "Id": 42,
+      "NodeType": "Normal",
+      "X": 550,
+      "Y": 750,
+      "ZoneName": "Z42"
     },
     {
-      "Id": 43,
-      "X": 650,
-      "Y": 750,
-      "ZoneName": "Z43",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "38": 1,
+        "44": 1.5
+      },
       "ConnectedNodeIds": [
         38,
         44
       ],
-      "ConnectedNodeDistances": {
-        "38": 1,
-        "44": 1.5
-      }
+      "Id": 43,
+      "NodeType": "Normal",
+      "X": 650,
+      "Y": 750,
+      "ZoneName": "Z43"
     },
     {
-      "Id": 44,
-      "X": 800,
-      "Y": 750,
-      "ZoneName": "Z44",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "31": 4.7,
+        "39": 2.7
+      },
       "ConnectedNodeIds": [
         31,
         39
       ],
-      "ConnectedNodeDistances": {
-        "31": 4.7,
-        "39": 2.7
-      }
+      "Id": 44,
+      "NodeType": "Normal",
+      "X": 800,
+      "Y": 750,
+      "ZoneName": "Z44"
     },
     {
-      "Id": 45,
-      "X": 1000,
-      "Y": 750,
-      "ZoneName": "Z45",
-      "NodeType": "Normal",
       "ConnectedNodeDistances": {
         "46": 1.1
-      }
+      },
+      "Id": 45,
+      "NodeType": "Normal",
+      "X": 1250,
+      "Y": 700,
+      "ZoneName": "Z45"
     },
     {
-      "Id": 46,
-      "X": 1100,
-      "Y": 800,
-      "ZoneName": "Z46",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "47": 1.5,
+        "55": 1.5
+      },
       "ConnectedNodeIds": [
         54,
         46
       ],
-      "ConnectedNodeDistances": {
-        "47": 1.5,
-        "55": 1.5
-      }
+      "Id": 46,
+      "NodeType": "Normal",
+      "X": 1100,
+      "Y": 800,
+      "ZoneName": "Z46"
     },
     {
-      "Id": 47,
-      "X": 1250,
-      "Y": 800,
-      "ZoneName": "Z47",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "48": 2,
+        "57": 1.5
+      },
       "ConnectedNodeIds": [
         47,
         56
       ],
-      "ConnectedNodeDistances": {
-        "48": 2,
-        "57": 1.5
-      }
+      "Id": 47,
+      "NodeType": "Normal",
+      "X": 1250,
+      "Y": 800,
+      "ZoneName": "Z47"
     },
     {
-      "Id": 48,
-      "X": 1450,
-      "Y": 800,
-      "ZoneName": "Z48",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "49": 2,
+        "60": 1.5
+      },
       "ConnectedNodeIds": [
         48,
         59
       ],
-      "ConnectedNodeDistances": {
-        "49": 2,
-        "60": 1.5
-      }
+      "Id": 48,
+      "NodeType": "Normal",
+      "X": 1450,
+      "Y": 800,
+      "ZoneName": "Z48"
     },
     {
-      "Id": 49,
-      "X": 1650,
-      "Y": 800,
-      "ZoneName": "Z49",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "50": 2.5,
+        "63": 1.5
+      },
       "ConnectedNodeIds": [
         49,
         62
       ],
-      "ConnectedNodeDistances": {
-        "50": 2.5,
-        "63": 1.5
-      }
+      "Id": 49,
+      "NodeType": "Normal",
+      "X": 1650,
+      "Y": 800,
+      "ZoneName": "Z49"
     },
     {
-      "Id": 50,
-      "X": 1900,
-      "Y": 800,
-      "ZoneName": "Z50",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "76": 2.5
+      },
       "ConnectedNodeIds": [
         75
       ],
-      "ConnectedNodeDistances": {
-        "76": 2.5
-      }
+      "Id": 50,
+      "NodeType": "Normal",
+      "X": 1900,
+      "Y": 800,
+      "ZoneName": "Z50"
     },
     {
-      "Id": 51,
-      "X": 350,
-      "Y": 900,
-      "ZoneName": "Z51",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "40": 1.5
+      },
       "ConnectedNodeIds": [
         40
       ],
-      "ConnectedNodeDistances": {
-        "40": 1.5
-      }
+      "Id": 51,
+      "NodeType": "Normal",
+      "X": 350,
+      "Y": 900,
+      "ZoneName": "Z51"
     },
     {
+      "ConnectedNodeDistances": {
+        "70": 1.4
+      },
+      "ConnectedNodeIds": [
+        69
+      ],
       "Id": 52,
+      "NodeType": "Normal",
       "X": 800,
       "Y": 950,
-      "ZoneName": "Z52",
-      "NodeType": "Normal",
-      "ConnectedNodeIds": [
-        69
-      ],
-      "ConnectedNodeDistances": {
-        "70": 1.4
-      }
+      "ZoneName": "Z52"
     },
     {
-      "Id": 53,
-      "X": 900,
-      "Y": 950,
-      "ZoneName": "Z53",
-      "NodeType": "Normal",
-      "ConnectedNodeIds": [
-        69
-      ],
       "ConnectedNodeDistances": {
         "70": 1
-      }
-    },
-    {
-      "Id": 54,
-      "X": 1000,
-      "Y": 950,
-      "ZoneName": "Z54",
-      "NodeType": "Normal",
+      },
       "ConnectedNodeIds": [
         69
       ],
-      "ConnectedNodeDistances": {
-        "70": 1.4
-      }
+      "Id": 53,
+      "NodeType": "Normal",
+      "X": 900,
+      "Y": 950,
+      "ZoneName": "Z53"
     },
     {
-      "Id": 55,
-      "X": 1100,
+      "ConnectedNodeDistances": {
+        "70": 1.4
+      },
+      "ConnectedNodeIds": [
+        69
+      ],
+      "Id": 54,
+      "NodeType": "Normal",
+      "X": 1000,
       "Y": 950,
-      "ZoneName": "Z46",
-      "NodeType": "Unload",
+      "ZoneName": "Z54"
+    },
+    {
+      "ConnectedNodeDistances": {
+        "46": 1.5
+      },
       "ConnectedNodeIds": [
         45
       ],
-      "ConnectedNodeDistances": {
-        "46": 1.5
-      }
+      "Id": 55,
+      "NodeType": "Unload",
+      "X": 1100,
+      "Y": 950,
+      "ZoneName": "Z46"
     },
     {
-      "Id": 56,
-      "X": 1200,
-      "Y": 950,
-      "ZoneName": "Z55",
-      "NodeType": "Load",
+      "ConnectedNodeDistances": {
+        "57": 0.5
+      },
       "ConnectedNodeIds": [
         56
       ],
-      "ConnectedNodeDistances": {
-        "57": 0.5
-      }
+      "Id": 56,
+      "NodeType": "Load",
+      "X": 1200,
+      "Y": 950,
+      "ZoneName": "Z55"
     },
     {
-      "Id": 57,
-      "X": 1250,
-      "Y": 950,
-      "ZoneName": "Z47",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "47": 1.5,
+        "56": 0.5,
+        "58": 0.5
+      },
       "ConnectedNodeIds": [
         55,
         57,
         46
       ],
-      "ConnectedNodeDistances": {
-        "47": 1.5,
-        "56": 0.5,
-        "58": 0.5
-      }
+      "Id": 57,
+      "NodeType": "Normal",
+      "X": 1250,
+      "Y": 950,
+      "ZoneName": "Z47"
     },
     {
-      "Id": 58,
-      "X": 1300,
-      "Y": 950,
-      "ZoneName": "Z56",
-      "NodeType": "Unload",
+      "ConnectedNodeDistances": {
+        "57": 0.5
+      },
       "ConnectedNodeIds": [
         56
       ],
-      "ConnectedNodeDistances": {
-        "57": 0.5
-      }
+      "Id": 58,
+      "NodeType": "Unload",
+      "X": 1300,
+      "Y": 950,
+      "ZoneName": "Z56"
     },
     {
-      "Id": 59,
-      "X": 1400,
-      "Y": 950,
-      "ZoneName": "Z57",
-      "NodeType": "Load",
+      "ConnectedNodeDistances": {
+        "60": 0.5
+      },
       "ConnectedNodeIds": [
         59
       ],
-      "ConnectedNodeDistances": {
-        "60": 0.5
-      }
+      "Id": 59,
+      "NodeType": "Load",
+      "X": 1400,
+      "Y": 950,
+      "ZoneName": "Z57"
     },
     {
-      "Id": 60,
-      "X": 1450,
-      "Y": 950,
-      "ZoneName": "Z48",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "48": 1.5
+      },
       "ConnectedNodeIds": [
         47
       ],
-      "ConnectedNodeDistances": {
-        "48": 1.5
-      }
+      "Id": 60,
+      "NodeType": "Normal",
+      "X": 1450,
+      "Y": 950,
+      "ZoneName": "Z48"
     },
     {
-      "Id": 61,
-      "X": 1500,
-      "Y": 950,
-      "ZoneName": "Z58",
-      "NodeType": "Unload",
+      "ConnectedNodeDistances": {
+        "60": 0.5
+      },
       "ConnectedNodeIds": [
         59
       ],
-      "ConnectedNodeDistances": {
-        "60": 0.5
-      }
+      "Id": 61,
+      "NodeType": "Unload",
+      "X": 1500,
+      "Y": 950,
+      "ZoneName": "Z58"
     },
     {
-      "Id": 62,
-      "X": 1600,
-      "Y": 950,
-      "ZoneName": "Z59",
-      "NodeType": "Load",
+      "ConnectedNodeDistances": {
+        "63": 0.5
+      },
       "ConnectedNodeIds": [
         62
       ],
-      "ConnectedNodeDistances": {
-        "63": 0.5
-      }
+      "Id": 62,
+      "NodeType": "Load",
+      "X": 1600,
+      "Y": 950,
+      "ZoneName": "Z59"
     },
     {
-      "Id": 63,
-      "X": 1650,
-      "Y": 950,
-      "ZoneName": "Z49",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "49": 1.5,
+        "62": 0.5,
+        "64": 0.5
+      },
       "ConnectedNodeIds": [
         61,
         63,
         48
       ],
-      "ConnectedNodeDistances": {
-        "49": 1.5,
-        "62": 0.5,
-        "64": 0.5
-      }
+      "Id": 63,
+      "NodeType": "Normal",
+      "X": 1650,
+      "Y": 950,
+      "ZoneName": "Z49"
     },
     {
-      "Id": 64,
-      "X": 1700,
-      "Y": 950,
-      "ZoneName": "Z60",
-      "NodeType": "Unload",
+      "ConnectedNodeDistances": {
+        "63": 0.5
+      },
       "ConnectedNodeIds": [
         62
       ],
-      "ConnectedNodeDistances": {
-        "63": 0.5
-      }
+      "Id": 64,
+      "NodeType": "Unload",
+      "X": 1700,
+      "Y": 950,
+      "ZoneName": "Z60"
     },
     {
+      "ConnectedNodeDistances": {},
+      "ConnectedNodeIds": [],
       "Id": 65,
+      "NodeType": "Load",
       "X": 1800,
       "Y": 950,
-      "ZoneName": "Z61",
-      "NodeType": "Load",
-      "ConnectedNodeIds": [],
-      "ConnectedNodeDistances": {}
+      "ZoneName": "Z61"
     },
     {
-      "Id": 66,
-      "X": 450,
-      "Y": 1050,
-      "ZoneName": "Z62",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "51": 1.8,
+        "77": 1
+      },
       "ConnectedNodeIds": [
         76,
         50
       ],
-      "ConnectedNodeDistances": {
-        "51": 1.8,
-        "77": 1
-      }
+      "Id": 66,
+      "NodeType": "Normal",
+      "X": 450,
+      "Y": 1050,
+      "ZoneName": "Z62"
     },
     {
-      "Id": 67,
-      "X": 550,
-      "Y": 1050,
-      "ZoneName": "Z63",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "66": 1,
+        "78": 1
+      },
       "ConnectedNodeIds": [
         77,
         65
       ],
-      "ConnectedNodeDistances": {
-        "66": 1,
-        "78": 1
-      }
+      "Id": 67,
+      "NodeType": "Normal",
+      "X": 550,
+      "Y": 1050,
+      "ZoneName": "Z63"
     },
     {
-      "Id": 68,
-      "X": 650,
-      "Y": 1050,
-      "ZoneName": "Z64",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "67": 1,
+        "79": 1
+      },
       "ConnectedNodeIds": [
         78,
         66
       ],
-      "ConnectedNodeDistances": {
-        "67": 1,
-        "79": 1
-      }
+      "Id": 68,
+      "NodeType": "Normal",
+      "X": 650,
+      "Y": 1050,
+      "ZoneName": "Z64"
     },
     {
-      "Id": 69,
-      "X": 750,
-      "Y": 1050,
-      "ZoneName": "Z65",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "68": 1,
+        "80": 1
+      },
       "ConnectedNodeIds": [
         79,
         67
       ],
-      "ConnectedNodeDistances": {
-        "68": 1,
-        "80": 1
-      }
+      "Id": 69,
+      "NodeType": "Normal",
+      "X": 750,
+      "Y": 1050,
+      "ZoneName": "Z65"
     },
     {
-      "Id": 70,
-      "X": 900,
-      "Y": 1050,
-      "ZoneName": "Z66",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "52": 1.4,
+        "53": 1,
+        "54": 1.4,
+        "69": 1.5,
+        "92": 4
+      },
       "ConnectedNodeIds": [
         68,
         53,
@@ -969,392 +971,384 @@
         51,
         91
       ],
-      "ConnectedNodeDistances": {
-        "52": 1.4,
-        "53": 1,
-        "54": 1.4,
-        "69": 1.5,
-        "92": 4
-      }
+      "Id": 70,
+      "NodeType": "Normal",
+      "X": 900,
+      "Y": 1050,
+      "ZoneName": "Z66"
     },
     {
-      "Id": 71,
-      "X": 1000,
-      "Y": 1050,
-      "ZoneName": "Z67",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "70": 1,
+        "93": 4
+      },
       "ConnectedNodeIds": [
         69,
         92
       ],
-      "ConnectedNodeDistances": {
-        "70": 1,
-        "93": 4
-      }
+      "Id": 71,
+      "NodeType": "Normal",
+      "X": 1000,
+      "Y": 1050,
+      "ZoneName": "Z67"
     },
     {
-      "Id": 72,
-      "X": 1100,
-      "Y": 1050,
-      "ZoneName": "Z68",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "71": 1,
+        "81": 1.5
+      },
       "ConnectedNodeIds": [
         80,
         70
       ],
-      "ConnectedNodeDistances": {
-        "71": 1,
-        "81": 1.5
-      }
+      "Id": 72,
+      "NodeType": "Normal",
+      "X": 1100,
+      "Y": 1050,
+      "ZoneName": "Z68"
     },
     {
-      "Id": 73,
-      "X": 1250,
-      "Y": 1050,
-      "ZoneName": "Z69",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "72": 1.5,
+        "83": 1.5
+      },
       "ConnectedNodeIds": [
         71,
         82
       ],
-      "ConnectedNodeDistances": {
-        "72": 1.5,
-        "83": 1.5
-      }
+      "Id": 73,
+      "NodeType": "Normal",
+      "X": 1250,
+      "Y": 1050,
+      "ZoneName": "Z69"
     },
     {
-      "Id": 74,
-      "X": 1450,
-      "Y": 1050,
-      "ZoneName": "Z70",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "73": 2,
+        "86": 1.5
+      },
       "ConnectedNodeIds": [
         72,
         85
       ],
-      "ConnectedNodeDistances": {
-        "73": 2,
-        "86": 1.5
-      }
+      "Id": 74,
+      "NodeType": "Normal",
+      "X": 1450,
+      "Y": 1050,
+      "ZoneName": "Z70"
     },
     {
-      "Id": 75,
-      "X": 1650,
-      "Y": 1050,
-      "ZoneName": "Z71",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "74": 2,
+        "89": 1.5
+      },
       "ConnectedNodeIds": [
         73,
         88
       ],
-      "ConnectedNodeDistances": {
-        "74": 2,
-        "89": 1.5
-      }
+      "Id": 75,
+      "NodeType": "Normal",
+      "X": 1650,
+      "Y": 1050,
+      "ZoneName": "Z71"
     },
     {
-      "Id": 76,
-      "X": 1900,
-      "Y": 1050,
-      "ZoneName": "Z72",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "75": 2.5,
+        "91": 1.8
+      },
       "ConnectedNodeIds": [
         74,
         90
       ],
-      "ConnectedNodeDistances": {
-        "75": 2.5,
-        "91": 1.8
-      }
+      "Id": 76,
+      "NodeType": "Normal",
+      "X": 1900,
+      "Y": 1050,
+      "ZoneName": "Z72"
     },
     {
-      "Id": 77,
-      "X": 450,
-      "Y": 1150,
-      "ZoneName": "Z73",
-      "NodeType": "Wash",
+      "ConnectedNodeDistances": {
+        "66": 1
+      },
       "ConnectedNodeIds": [
         65
       ],
-      "ConnectedNodeDistances": {
-        "66": 1
-      }
+      "Id": 77,
+      "NodeType": "Wash",
+      "X": 450,
+      "Y": 1150,
+      "ZoneName": "Z73"
     },
     {
-      "Id": 78,
-      "X": 550,
-      "Y": 1150,
-      "ZoneName": "Z74",
-      "NodeType": "Wash",
+      "ConnectedNodeDistances": {
+        "67": 1
+      },
       "ConnectedNodeIds": [
         66
       ],
-      "ConnectedNodeDistances": {
-        "67": 1
-      }
+      "Id": 78,
+      "NodeType": "Wash",
+      "X": 550,
+      "Y": 1150,
+      "ZoneName": "Z74"
     },
     {
-      "Id": 79,
-      "X": 650,
-      "Y": 1150,
-      "ZoneName": "Z75",
-      "NodeType": "Wash",
+      "ConnectedNodeDistances": {
+        "68": 1
+      },
       "ConnectedNodeIds": [
         67
       ],
-      "ConnectedNodeDistances": {
-        "68": 1
-      }
+      "Id": 79,
+      "NodeType": "Wash",
+      "X": 650,
+      "Y": 1150,
+      "ZoneName": "Z75"
     },
     {
-      "Id": 80,
-      "X": 750,
-      "Y": 1150,
-      "ZoneName": "Z76",
-      "NodeType": "Wash",
+      "ConnectedNodeDistances": {
+        "69": 1
+      },
       "ConnectedNodeIds": [
         68
       ],
-      "ConnectedNodeDistances": {
-        "69": 1
-      }
+      "Id": 80,
+      "NodeType": "Wash",
+      "X": 750,
+      "Y": 1150,
+      "ZoneName": "Z76"
     },
     {
-      "Id": 81,
-      "X": 1100,
-      "Y": 1200,
-      "ZoneName": "Z68",
-      "NodeType": "Unload",
+      "ConnectedNodeDistances": {
+        "72": 1.5
+      },
       "ConnectedNodeIds": [
         71
       ],
-      "ConnectedNodeDistances": {
-        "72": 1.5
-      }
+      "Id": 81,
+      "NodeType": "Unload",
+      "X": 1100,
+      "Y": 1200,
+      "ZoneName": "Z68"
     },
     {
-      "Id": 82,
-      "X": 1200,
-      "Y": 1200,
-      "ZoneName": "Z77",
-      "NodeType": "Load",
+      "ConnectedNodeDistances": {
+        "83": 0.5
+      },
       "ConnectedNodeIds": [
         82
       ],
-      "ConnectedNodeDistances": {
-        "83": 0.5
-      }
+      "Id": 82,
+      "NodeType": "Load",
+      "X": 1200,
+      "Y": 1200,
+      "ZoneName": "Z77"
     },
     {
-      "Id": 83,
-      "X": 1250,
-      "Y": 1200,
-      "ZoneName": "Z69",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "73": 1.5,
+        "82": 0.5,
+        "84": 0.5
+      },
       "ConnectedNodeIds": [
         81,
         83,
         72
       ],
-      "ConnectedNodeDistances": {
-        "73": 1.5,
-        "82": 0.5,
-        "84": 0.5
-      }
+      "Id": 83,
+      "NodeType": "Normal",
+      "X": 1250,
+      "Y": 1200,
+      "ZoneName": "Z69"
     },
     {
-      "Id": 84,
-      "X": 1300,
-      "Y": 1200,
-      "ZoneName": "Z78",
-      "NodeType": "Unload",
+      "ConnectedNodeDistances": {
+        "83": 0.5
+      },
       "ConnectedNodeIds": [
         82
       ],
-      "ConnectedNodeDistances": {
-        "83": 0.5
-      }
+      "Id": 84,
+      "NodeType": "Unload",
+      "X": 1300,
+      "Y": 1200,
+      "ZoneName": "Z78"
     },
     {
-      "Id": 85,
-      "X": 1400,
-      "Y": 1200,
-      "ZoneName": "Z79",
-      "NodeType": "Load",
+      "ConnectedNodeDistances": {
+        "86": 0.5
+      },
       "ConnectedNodeIds": [
         85
       ],
-      "ConnectedNodeDistances": {
-        "86": 0.5
-      }
+      "Id": 85,
+      "NodeType": "Load",
+      "X": 1400,
+      "Y": 1200,
+      "ZoneName": "Z79"
     },
     {
-      "Id": 86,
-      "X": 1450,
-      "Y": 1200,
-      "ZoneName": "Z70",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "74": 1.5,
+        "85": 0.5,
+        "87": 0.5
+      },
       "ConnectedNodeIds": [
         84,
         86,
         73
       ],
-      "ConnectedNodeDistances": {
-        "74": 1.5,
-        "85": 0.5,
-        "87": 0.5
-      }
+      "Id": 86,
+      "NodeType": "Normal",
+      "X": 1450,
+      "Y": 1200,
+      "ZoneName": "Z70"
     },
     {
-      "Id": 87,
-      "X": 1500,
-      "Y": 1200,
-      "ZoneName": "Z80",
-      "NodeType": "Unload",
+      "ConnectedNodeDistances": {
+        "86": 0.5
+      },
       "ConnectedNodeIds": [
         85
       ],
-      "ConnectedNodeDistances": {
-        "86": 0.5
-      }
+      "Id": 87,
+      "NodeType": "Unload",
+      "X": 1500,
+      "Y": 1200,
+      "ZoneName": "Z80"
     },
     {
-      "Id": 88,
-      "X": 1600,
-      "Y": 1200,
-      "ZoneName": "Z81",
-      "NodeType": "Load",
+      "ConnectedNodeDistances": {
+        "89": 0.5
+      },
       "ConnectedNodeIds": [
         88
       ],
-      "ConnectedNodeDistances": {
-        "89": 0.5
-      }
+      "Id": 88,
+      "NodeType": "Load",
+      "X": 1600,
+      "Y": 1200,
+      "ZoneName": "Z81"
     },
     {
-      "Id": 89,
-      "X": 1650,
-      "Y": 1200,
-      "ZoneName": "Z71",
-      "NodeType": "Normal",
+      "ConnectedNodeDistances": {
+        "75": 1.5,
+        "88": 0.5,
+        "90": 0.5
+      },
       "ConnectedNodeIds": [
         87,
         89,
         74
       ],
-      "ConnectedNodeDistances": {
-        "75": 1.5,
-        "88": 0.5,
-        "90": 0.5
-      }
+      "Id": 89,
+      "NodeType": "Normal",
+      "X": 1650,
+      "Y": 1200,
+      "ZoneName": "Z71"
     },
     {
-      "Id": 90,
-      "X": 1700,
-      "Y": 1200,
-      "ZoneName": "Z82",
-      "NodeType": "Unload",
+      "ConnectedNodeDistances": {
+        "89": 0.5
+      },
       "ConnectedNodeIds": [
         88
       ],
-      "ConnectedNodeDistances": {
-        "89": 0.5
-      }
+      "Id": 90,
+      "NodeType": "Unload",
+      "X": 1700,
+      "Y": 1200,
+      "ZoneName": "Z82"
     },
     {
-      "Id": 91,
-      "X": 1800,
-      "Y": 1200,
-      "ZoneName": "Z72",
-      "NodeType": "Load",
+      "ConnectedNodeDistances": {
+        "76": 1.8
+      },
       "ConnectedNodeIds": [
         75
       ],
-      "ConnectedNodeDistances": {
-        "76": 1.8
-      }
+      "Id": 91,
+      "NodeType": "Load",
+      "X": 1800,
+      "Y": 1200,
+      "ZoneName": "Z72"
     },
     {
-      "Id": 92,
-      "X": 900,
-      "Y": 1450,
-      "ZoneName": "Z66",
-      "NodeType": "Unload",
+      "ConnectedNodeDistances": {
+        "70": 4
+      },
       "ConnectedNodeIds": [
         69
       ],
-      "ConnectedNodeDistances": {
-        "70": 4
-      }
+      "Id": 92,
+      "NodeType": "Unload",
+      "X": 900,
+      "Y": 1450,
+      "ZoneName": "Z66"
     },
     {
-      "Id": 93,
-      "X": 1000,
-      "Y": 1450,
-      "ZoneName": "Z67",
-      "NodeType": "Load",
+      "ConnectedNodeDistances": {
+        "71": 4
+      },
       "ConnectedNodeIds": [
         70
       ],
-      "ConnectedNodeDistances": {
-        "71": 4
-      }
+      "Id": 93,
+      "NodeType": "Load",
+      "X": 1000,
+      "Y": 1450,
+      "ZoneName": "Z67"
     }
   ],
   "TaskTemplates": [
     {
-      "TemplateId": "Task_1774612384041",
-      "TemplateName": "模组1上料",
       "Stages": [
         {
-          "TargetNodeId": 0,
           "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "前往 Z20",
-          "DynamicTargetType": "Normal",
           "CandidateNodeIds": [
             33,
             34
-          ]
-        },
-        {
-          "TargetNodeId": 55,
-          "ActionCode": "None",
-          "WaitTimeMs": 200,
-          "StageName": "前往 Z46"
-        },
-        {
+          ],
+          "DynamicTargetType": "Normal",
+          "StageName": "\u524D\u5F80 Z20",
           "TargetNodeId": 0,
+          "WaitTimeMs": 0
+        },
+        {
           "ActionCode": "None",
-          "WaitTimeMs": 1000,
-          "StageName": "动态前往目标",
-          "DynamicTargetType": "Wash",
+          "StageName": "\u524D\u5F80 Z46",
+          "TargetNodeId": 55,
+          "WaitTimeMs": 200
+        },
+        {
+          "ActionCode": "None",
           "CandidateNodeIds": [
             77,
             78,
             79,
             80
-          ]
+          ],
+          "DynamicTargetType": "Wash",
+          "StageName": "\u52A8\u6001\u524D\u5F80\u76EE\u6807",
+          "TargetNodeId": 0,
+          "WaitTimeMs": 1000
         },
         {
-          "TargetNodeId": 0,
           "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "动态前往目标",
-          "DynamicTargetType": "Buffer",
           "CandidateNodeIds": [
             35,
             36,
             37,
             38
-          ]
+          ],
+          "DynamicTargetType": "Buffer",
+          "StageName": "\u52A8\u6001\u524D\u5F80\u76EE\u6807",
+          "TargetNodeId": 0,
+          "WaitTimeMs": 0
         },
         {
-          "TargetNodeId": 0,
           "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "动态前往目标",
-          "DynamicTargetType": "Buffer",
           "CandidateNodeIds": [
             35,
             36,
@@ -1364,63 +1358,63 @@
             12,
             13,
             14
-          ]
+          ],
+          "DynamicTargetType": "Buffer",
+          "StageName": "\u52A8\u6001\u524D\u5F80\u76EE\u6807",
+          "TargetNodeId": 0,
+          "WaitTimeMs": 0
         }
-      ]
+      ],
+      "TemplateId": "Task_1774612384041",
+      "TemplateName": "\u6A21\u7EC41\u4E0A\u6599"
     },
     {
-      "TemplateId": "Task_1774666062072",
-      "TemplateName": "模组2上料",
       "Stages": [
         {
-          "TargetNodeId": 0,
           "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "前往 Z20",
-          "DynamicTargetType": "Normal",
           "CandidateNodeIds": [
             33,
             34
-          ]
-        },
-        {
-          "TargetNodeId": 58,
-          "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "前往 Z56"
-        },
-        {
+          ],
+          "DynamicTargetType": "Normal",
+          "StageName": "\u524D\u5F80 Z20",
           "TargetNodeId": 0,
+          "WaitTimeMs": 0
+        },
+        {
           "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "动态前往目标",
-          "DynamicTargetType": "Wash",
+          "StageName": "\u524D\u5F80 Z56",
+          "TargetNodeId": 58,
+          "WaitTimeMs": 0
+        },
+        {
+          "ActionCode": "None",
           "CandidateNodeIds": [
             77,
             78,
             79,
             80
-          ]
+          ],
+          "DynamicTargetType": "Wash",
+          "StageName": "\u52A8\u6001\u524D\u5F80\u76EE\u6807",
+          "TargetNodeId": 0,
+          "WaitTimeMs": 0
         },
         {
-          "TargetNodeId": 0,
           "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "动态前往目标",
-          "DynamicTargetType": "Buffer",
           "CandidateNodeIds": [
             35,
             36,
             37,
             38
-          ]
+          ],
+          "DynamicTargetType": "Buffer",
+          "StageName": "\u52A8\u6001\u524D\u5F80\u76EE\u6807",
+          "TargetNodeId": 0,
+          "WaitTimeMs": 0
         },
         {
-          "TargetNodeId": 0,
           "ActionCode": "None",
-          "WaitTimeMs": 0,
-          "StageName": "动态前往目标",
-          "DynamicTargetType": "Buffer",
           "CandidateNodeIds": [
             35,
             36,
@@ -1430,9 +1424,15 @@
             12,
             13,
             14
-          ]
+          ],
+          "DynamicTargetType": "Buffer",
+          "StageName": "\u52A8\u6001\u524D\u5F80\u76EE\u6807",
+          "TargetNodeId": 0,
+          "WaitTimeMs": 0
         }
-      ]
+      ],
+      "TemplateId": "Task_1774666062072",
+      "TemplateName": "\u6A21\u7EC42\u4E0A\u6599"
     }
   ],
   "VisualElements": [
@@ -1440,88 +1440,88 @@
       "id": 1774519477498,
       "type": "rect",
       "x1": 1100,
-      "y1": 850,
       "x2": 1200,
+      "y1": 850,
       "y2": 950
     },
     {
       "id": 1774519576193,
       "type": "rect",
       "x1": 1300,
-      "y1": 850,
       "x2": 1400,
+      "y1": 850,
       "y2": 950
     },
     {
       "id": 1774519577724,
       "type": "rect",
       "x1": 1500,
-      "y1": 850,
       "x2": 1600,
+      "y1": 850,
       "y2": 950
     },
     {
       "id": 1774519580266,
       "type": "rect",
       "x1": 1700,
-      "y1": 850,
       "x2": 1800,
+      "y1": 850,
       "y2": 950
     },
     {
       "id": 1774519586540,
       "type": "rect",
       "x1": 1100,
-      "y1": 1100,
       "x2": 1200,
+      "y1": 1100,
       "y2": 1200
     },
     {
       "id": 1774519599092,
       "type": "rect",
       "x1": 1300,
-      "y1": 1100,
       "x2": 1400,
+      "y1": 1100,
       "y2": 1200
     },
     {
       "id": 1774519600403,
       "type": "rect",
       "x1": 1500,
-      "y1": 1100,
       "x2": 1600,
+      "y1": 1100,
       "y2": 1200
     },
     {
       "id": 1774519601670,
       "type": "rect",
       "x1": 1700,
-      "y1": 1100,
       "x2": 1800,
+      "y1": 1100,
       "y2": 1200
     },
     {
       "id": 1774519644043,
       "type": "rect",
       "x1": 650,
-      "y1": 400,
       "x2": 900,
+      "y1": 400,
       "y2": 550
     },
     {
       "id": 1774519658674,
       "type": "rect",
       "x1": 1450,
-      "y1": 500,
       "x2": 1750,
+      "y1": 500,
       "y2": 650
     },
     {
       "id": 1774519722267,
       "type": "rect",
       "x1": 900,
-      "y1": 1350,
       "x2": 1000,
+      "y1": 1350,
       "y2": 1450
     }
   ],

@@ -212,12 +212,25 @@ export default function App() {
     return nodes.length > 0 ? Math.max(...nodes.map(n => n.Id)) + 1 : 1;
   };
 
+  // Helper to get coordinates relative to the 5000x5000 inner container, 
+  // robustly accounting for all nested CSS scales (including the outer window-fit scale).
+  const getRelativeCoords = (e: MouseEvent | React.MouseEvent | globalThis.MouseEvent) => {
+    if (!innerContainerRef.current) return { x: 0, y: 0 };
+    const rect = innerContainerRef.current.getBoundingClientRect();
+    // Use the actual rendered size vs the CSS size to find the TRUE total scale.
+    // offsetWidth is the reference 5000px, while rect.width is the physical screen pixels.
+    const totalScaleX = rect.width / innerContainerRef.current.offsetWidth;
+    const totalScaleY = rect.height / innerContainerRef.current.offsetHeight;
+    
+    return {
+      x: (e.clientX - rect.left) / totalScaleX,
+      y: (e.clientY - rect.top) / totalScaleY
+    };
+  };
+
   const handleCanvasMouseDown = (e: MouseEvent) => {
     if (mainMode === 'map') {
-      if (!innerContainerRef.current) return;
-      const rect = innerContainerRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / scale;
-      const y = (e.clientY - rect.top) / scale;
+      const { x, y } = getRelativeCoords(e);
       
       // Snap to grid
       const snappedX = Math.round(x / GRID_SIZE) * GRID_SIZE;
@@ -261,26 +274,22 @@ export default function App() {
     
     if (mainMode === 'map') {
       if (mapMode === 'select') {
-        if (innerContainerRef.current) {
-          const rect = innerContainerRef.current.getBoundingClientRect();
-          const mouseX = (e.clientX - rect.left) / scale;
-          const mouseY = (e.clientY - rect.top) / scale;
-          
-          if (!selectedNodeIds.includes(id)) {
-            if (e.shiftKey) {
-              setSelectedNodeIds([...selectedNodeIds, id]);
-            } else {
-              setSelectedNodeIds([id]);
-              setSelectedElementIds([]);
-            }
-          } else if (e.shiftKey) {
-            // Deselect if already selected and shift is pressed
-            setSelectedNodeIds(selectedNodeIds.filter(selectedId => selectedId !== id));
-            return; // Don't start dragging if we just deselected
+        const { x: mouseX, y: mouseY } = getRelativeCoords(e);
+        
+        if (!selectedNodeIds.includes(id)) {
+          if (e.shiftKey) {
+            setSelectedNodeIds([...selectedNodeIds, id]);
+          } else {
+            setSelectedNodeIds([id]);
+            setSelectedElementIds([]);
           }
-          setIsDraggingSelection(true);
-          setLastMousePos({ x: mouseX, y: mouseY });
+        } else if (e.shiftKey) {
+          // Deselect if already selected and shift is pressed
+          setSelectedNodeIds(selectedNodeIds.filter(selectedId => selectedId !== id));
+          return; // Don't start dragging if we just deselected
         }
+        setIsDraggingSelection(true);
+        setLastMousePos({ x: mouseX, y: mouseY });
       } else if (mapMode === 'connect') {
         if (connectingFrom === null) {
           setConnectingFrom(id);
@@ -336,34 +345,26 @@ export default function App() {
       if (editingConnection) {
         setEditingConnection(null);
       }
-      if (innerContainerRef.current) {
-        const rect = innerContainerRef.current.getBoundingClientRect();
-        const mouseX = (e.clientX - rect.left) / scale;
-        const mouseY = (e.clientY - rect.top) / scale;
+      const { x: mouseX, y: mouseY } = getRelativeCoords(e);
 
-        if (!selectedElementIds.includes(id)) {
-          if (e.shiftKey) {
-            setSelectedElementIds([...selectedElementIds, id]);
-          } else {
-            setSelectedElementIds([id]);
-            setSelectedNodeIds([]);
-          }
-        } else if (e.shiftKey) {
-          setSelectedElementIds(selectedElementIds.filter(selectedId => selectedId !== id));
-          return;
+      if (!selectedElementIds.includes(id)) {
+        if (e.shiftKey) {
+          setSelectedElementIds([...selectedElementIds, id]);
+        } else {
+          setSelectedElementIds([id]);
+          setSelectedNodeIds([]);
         }
-        setIsDraggingSelection(true);
-        setLastMousePos({ x: mouseX, y: mouseY });
+      } else if (e.shiftKey) {
+        setSelectedElementIds(selectedElementIds.filter(selectedId => selectedId !== id));
+        return;
       }
+      setIsDraggingSelection(true);
+      setLastMousePos({ x: mouseX, y: mouseY });
     }
   };
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (!innerContainerRef.current) return;
-    const rect = innerContainerRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / scale;
-    const y = (e.clientY - rect.top) / scale;
-    
+    const { x, y } = getRelativeCoords(e);
     setMousePos({ x, y });
 
     if (mainMode === 'map' && mapMode === 'select') {
