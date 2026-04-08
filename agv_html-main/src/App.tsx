@@ -68,6 +68,8 @@ export default function App() {
 
   // === 系统数据与状态 ===
   const [agvs, setAgvs] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<string>("");
   const [mapData, setMapData] = useState({ nodes: [] as any[], edges: [] as any[] });
   const [selectedAgvId, setSelectedAgvId] = useState("");
   const [debugCmd, setDebugCmd] = useState({ type: '0x', address: '00004', value: '1' });
@@ -92,6 +94,12 @@ export default function App() {
           });
         } else if (payload.type === 'map_update') {
           setMapData({ nodes: payload.nodes || [], edges: payload.edges || [] });
+        } else if (payload.type === 'task_update') {
+          setTasks(payload.data || []);
+          setSelectedTaskId(prev => {
+             if (!prev && payload.data && payload.data.length > 0) return payload.data[0].id;
+             return prev;
+          });
         }
       } catch (e) {
         console.error("解析WPF消息报错", e);
@@ -433,19 +441,21 @@ export default function App() {
                       <h2 className="text-xl font-bold text-slate-100">任务调度队列</h2>
                     </div>
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4">
-                      {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 hover:border-cyan-500/50 transition-colors cursor-pointer">
+                      {tasks.length > 0 ? tasks.map((task, i) => (
+                        <div key={task.id || i} onClick={() => setSelectedTaskId(task.id)} className={`bg-slate-800/80 p-4 rounded-xl border ${selectedTaskId === task.id ? 'border-cyan-500 shadow-[0_0_15px_rgba(34,211,238,0.2)]' : 'border-slate-700 hover:border-cyan-500/50'} transition-all cursor-pointer`}>
                           <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold text-slate-200">Task-{1000+i}</span>
-                            <span className="text-xs bg-emerald-900/50 text-emerald-400 px-2 py-1 rounded border border-emerald-800">执行中</span>
+                            <span className="font-bold text-slate-200">{task.id}</span>
+                            <span className={`text-xs px-2 py-1 rounded border ${task.statusText === '执行中' ? 'bg-emerald-900/50 text-emerald-400 border-emerald-800' : 'bg-amber-900/50 text-amber-400 border-amber-800'}`}>{task.statusText}</span>
                           </div>
-                          <div className="text-sm text-slate-400">起点: 仓库A区-0{i}</div>
-                          <div className="text-sm text-slate-400">终点: 产线B区-1{i}</div>
+                          <div className="text-sm text-slate-400 mb-1">承运车辆: <span className="text-slate-200 font-mono">{task.robotId}</span></div>
+                          <div className="text-sm text-slate-400">当前阶段: <span className="text-slate-200">{task.stage || '等待执行'}</span></div>
                           <div className="mt-3 w-full bg-slate-900 rounded-full h-1.5">
-                            <div className="bg-cyan-500 h-1.5 rounded-full" style={{ width: `${Math.random() * 60 + 20}%` }}></div>
+                            <div className="bg-cyan-500 h-1.5 rounded-full" style={{ width: task.isCompleted ? '100%' : '50%' }}></div>
                           </div>
                         </div>
-                      ))}
+                      )) : (
+                        <div className="text-slate-500 text-center py-10">暂无活动任务</div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -726,13 +736,19 @@ export default function App() {
                       <h2 className="text-xl font-bold text-slate-100">任务详情与控制</h2>
                     </div>
                     <div className="bg-slate-800/80 p-5 rounded-xl border border-slate-700 mb-6">
-                      <h3 className="text-lg font-bold text-cyan-300 mb-4">Task-1001</h3>
-                      <div className="space-y-3 text-sm">
-                        <div className="flex justify-between"><span className="text-slate-400">承运车辆</span><span className="text-slate-100 font-mono">AGV-005</span></div>
-                        <div className="flex justify-between"><span className="text-slate-400">载重物料</span><span className="text-slate-100">发动机缸体 x2</span></div>
-                        <div className="flex justify-between"><span className="text-slate-400">优先级</span><span className="text-rose-400 font-bold">高 (P1)</span></div>
-                        <div className="flex justify-between"><span className="text-slate-400">预计送达</span><span className="text-slate-100 font-mono">14:30:00</span></div>
-                      </div>
+                      {tasks.find(t => t.id === selectedTaskId) ? (
+                        <>
+                          <h3 className="text-lg font-bold text-cyan-300 mb-4">{selectedTaskId}</h3>
+                          <div className="space-y-3 text-sm">
+                            <div className="flex justify-between"><span className="text-slate-400">承运车辆</span><span className="text-slate-100 font-mono">{tasks.find(t => t.id === selectedTaskId)?.robotId}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">当前动作</span><span className="text-slate-100">{tasks.find(t => t.id === selectedTaskId)?.stage || '无'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">状态</span><span className="text-emerald-400 font-bold">{tasks.find(t => t.id === selectedTaskId)?.statusText}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">完成情况</span><span className="text-slate-100 font-mono">{tasks.find(t => t.id === selectedTaskId)?.isCompleted ? '是' : '否'}</span></div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-slate-500 text-center py-6">请选择一个任务</div>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <button className="p-4 bg-rose-900/60 hover:bg-rose-600 border border-rose-500/80 rounded-xl text-white transition-colors font-bold">

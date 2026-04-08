@@ -72,6 +72,26 @@ namespace BasicRegionNavigation.Views
                 }
                 catch { }
             }
+
+            if (BasicRegionNavigation.ViewModels.ViewAViewModel.GlobalActiveTasks != null)
+            {
+                var tasks = BasicRegionNavigation.ViewModels.ViewAViewModel.GlobalActiveTasks.ToList();
+                var taskData = tasks.Select(t => new {
+                    id = t.OrderId,
+                    statusText = t.StatusDisplayText,
+                    stage = t.StageDescription,
+                    robotId = string.IsNullOrEmpty(t.AssignedRobotId) || t.AssignedRobotId == "-" ? "未分配" : t.AssignedRobotId,
+                    isCompleted = t.IsCompleted
+                }).ToList();
+                
+                var payload = new { type = "task_update", data = taskData };
+                var json = System.Text.Json.JsonSerializer.Serialize(payload);
+                try 
+                {
+                    ReactAppWebView.CoreWebView2?.PostWebMessageAsJson(json);
+                }
+                catch { }
+            }
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

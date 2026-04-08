@@ -49,6 +49,7 @@ namespace BasicRegionNavigation.ViewModels
         
         public static ObservableCollection<LogicNode> GlobalMapNodes { get; private set; }
         public static ObservableCollection<MapEdgeViewModel> GlobalMapEdges { get; private set; }
+        public static ObservableCollection<TaskOrder> GlobalActiveTasks { get; private set; }
 
         [ObservableProperty]
         private int _currentNode;
@@ -189,6 +190,7 @@ namespace BasicRegionNavigation.ViewModels
             RobotList = new ObservableCollection<IRobot>(_robots);
             GlobalRobots = RobotList;
             GlobalTrafficController = _trafficController;
+            GlobalActiveTasks = ActiveTasks;
 
             // 实例化 Dispatcher
             _taskDispatcher = new BasicRegionNavigation.Applications.Dispatchers.TaskDispatcher(_robots, MapNodes, _databaseService, _trafficController);
