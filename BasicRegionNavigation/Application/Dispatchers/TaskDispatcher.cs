@@ -249,13 +249,24 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                         robot.RecordStop($"正在申请节点 {targetNode.Id} 的通行证...");
                         // 获取对应的区域名称（ZoneName），实现多节点对应单锁
                         string targetZone = GetZoneName(targetNode);
+                        // 【需求2：申请前锁快照，暴露历史遗留锁】
+                        var allLocksSnapshot = _trafficController.GetAllLocks();
+                        var heldZonesSnapshot = string.Join(",", System.Linq.Enumerable.Select(
+                            System.Linq.Enumerable.Where(allLocksSnapshot, kv => kv.Value == robot.Id), kv => kv.Key));
+                        var queuingZonesSnapshot = string.Join(",",
+                            System.Linq.Enumerable.Select(
+                                System.Linq.Enumerable.Where(allLocksSnapshot, kv => kv.Value != robot.Id && kv.Key == targetZone),
+                                kv => kv.Key));
+                        Serilog.Log.Information(
+                            $"[交通管制] {robot.Id} 路线刷新(阶段:{currentStage.StageName} -> 节点:{targetNode.Id}/区域:{targetZone})，" +
+                            $"当前强制保留持有的锁: [{(string.IsNullOrEmpty(heldZonesSnapshot) ? "无" : heldZonesSnapshot)}]");
                         await _trafficController.WaitAndAcquireLockAsync(targetZone, robot.Id, priorityDistance);
                     }
 
                     try 
                     {
-                        // 步骤 C：物理占用清理 (驱赶停在目标点的空闲车辆)
-                        await CheckAndClearPhysicalOccupancyAsync(robot, targetNode);
+                        // 【新增日志】成功获取通行证
+                        Serilog.Log.Information($"[阶段执行] 车 {robot.Id} 已获取通行证，开始前往节点 {targetNode.Id}");
 
                         // 物理移动
                         await robot.GoToNodeAsync(targetNode);
@@ -274,6 +285,9 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                     }
                     finally
                     {
+                        // 【新增日志】阶段完成或因故障退出，准备清理
+                        Serilog.Log.Information($"[阶段完成/清理] 车 {robot.Id} 准备释放节点 {targetNode.Id} 的占用与交通锁");
+                        
                         // 步骤 D：释放节点和交通锁
                         ReleaseStageLocks(targetNode.Id, robot.Id, reservedNodesThisOrder);
                     }
@@ -301,6 +315,19 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             }
             finally
             {
+                // ==========================================
+                // 【新增：交通锁防泄漏兜底逻辑】
+                // ==========================================
+                if (_trafficController != null)
+                {
+                    // 获取小车当前物理坐标对应的 Zone，这个锁必须保留以防被撞
+                    var currentPhysicalNode = _mapNodes.FirstOrDefault(n => n.Id == robot.CurrentNode);
+                    string currentZone = currentPhysicalNode != null ? GetZoneName(currentPhysicalNode) : null;
+                    
+                    // 强制清空这辆车身上可能残留的所有其他阶段的锁或路径锁
+                    _trafficController.ReleaseAllLocksForRobot(robot.Id, currentZone);
+                }
+
                 // 1. 先解除小车的占用状态
                 _dispatchedRobotsCache.Remove(robot.Id);
 
@@ -355,6 +382,15 @@ namespace BasicRegionNavigation.Applications.Dispatchers
                             _reservedNodesCache.Add(bestNode.Id);
                             reservedNodesThisOrder.Add(bestNode.Id);
                             Serilog.Log.Information($"[动态寻址] 为车 {robot.Id} 匹配最优目的地: 节点 {bestNode.Id} ({stage.DynamicTargetType})");
+                            // 【需求2：路线刷新锁快照】
+                            if (_trafficController != null)
+                            {
+                                var allLocks = _trafficController.GetAllLocks();
+                                var heldZones = string.Join(",", System.Linq.Enumerable.Select(
+                                    System.Linq.Enumerable.Where(allLocks, kv => kv.Value == robot.Id), kv => kv.Key));
+                                Serilog.Log.Information(
+                                    $"[交通管制] {robot.Id} 路线刷新(动态寻址)，当前强制保留持有的锁: [{(string.IsNullOrEmpty(heldZones) ? "无" : heldZones)}]");
+                            }
                             break;
                         }
                     }
@@ -372,54 +408,6 @@ namespace BasicRegionNavigation.Applications.Dispatchers
             }
             
             return targetNode;
-        }
-
-        private async Task CheckAndClearPhysicalOccupancyAsync(IRobot currentRobot, LogicNode targetNode)
-        {
-            int maxWaitSeconds = 30; // 最大等待30秒
-            int waited = 0;
-
-            while (true)
-            {
-                var occupantRobot = _robots.FirstOrDefault(r => r.Id != currentRobot.Id && r.CurrentNode == targetNode.Id);
-                if (occupantRobot == null) break;
-
-                // 【新增日志】死锁预警：当前节点被物理占用
-                Serilog.Log.Warning($"[死锁预警] 车辆 {currentRobot.Id} 无法进入节点 {targetNode.Id}，该点被车辆 {occupantRobot.Id} (状态: {occupantRobot.State}) 物理占用。");
-
-                if (waited >= maxWaitSeconds)
-                {
-                    Serilog.Log.Error($"[死锁警告] 车 {currentRobot.Id} 试图驱赶目标节点 {targetNode.Id} 上的车 {occupantRobot.Id}，但等待 {maxWaitSeconds}s 失败！强行中止驱赶。");
-                    throw new Exception("驱赶目标点车辆超时，路网死锁"); // 抛出异常让外层捕获，任务转为 Fault 状态并释放锁
-                }
-
-                if (occupantRobot.State == RobotState.IDLE)
-                {
-                    var bufferCandidates = _mapNodes
-                        .Where(n => (targetNode.ConnectedNodeIds.Contains(n.Id) || n.ConnectedNodeIds.Contains(targetNode.Id))
-                                    && !_robots.Any(r => r.CurrentNode == n.Id))
-                        .ToList();
-
-                    var bufferNode = bufferCandidates.FirstOrDefault(n => n.IsBufferNode) ?? bufferCandidates.FirstOrDefault();
-
-                    if (bufferNode != null)
-                    {
-                        Serilog.Log.Information($"[路权管理] 正在将车 {occupantRobot.Id} 驱离至缓冲节点 {bufferNode.Id}...");
-                        await occupantRobot.GoToNodeAsync(bufferNode);
-                    }
-                    else
-                    {
-                        await Task.Delay(1000); 
-                        waited++;
-                    }
-                }
-                else
-                {
-                    // 占用车不是 IDLE（可能故障了），无法驱赶
-                    await Task.Delay(1000); 
-                    waited++;
-                }
-            }
         }
 
         private void ReleaseStageLocks(int targetNodeId, string robotId, List<int> reservedNodesThisOrder)

@@ -44,6 +44,10 @@ namespace BasicRegionNavigation.Applications.Controllers
                 if (!_waitingQueues[zoneName].Exists(x => x.RobotId == robotId))
                 {
                     _waitingQueues[zoneName].Add((robotId, priority));
+                    // 【需求1：锁申请记录】
+                    var heldByRequester = string.Join(",", System.Linq.Enumerable.Select(
+                        System.Linq.Enumerable.Where(_lockedZones, kv => kv.Value == robotId), kv => kv.Key));
+                    Serilog.Log.Debug($"[交通管制] 车辆 {robotId} 发起申请 -> 区域 {zoneName} (当前持有锁: [{(string.IsNullOrEmpty(heldByRequester) ? "无" : heldByRequester)}], 优先级={priority:F1})");
                 }
             }
 
@@ -76,8 +80,19 @@ namespace BasicRegionNavigation.Applications.Controllers
                             }
                             else 
                             {
-                                // 【新增日志】排在第一位但锁被别人拿着
-                                Serilog.Log.Warning($"[交通管制] {robotId} 位于队列首位，但区域 {zoneName} 仍被 {_lockedZones[zoneName]} 占用");
+                                // 【需求3：强化死锁警告，附双方持仓快照】
+                                string blockerRobotId = _lockedZones[zoneName];
+                                var requesterHolding = string.Join(",", System.Linq.Enumerable.Select(
+                                    System.Linq.Enumerable.Where(_lockedZones, kv => kv.Value == robotId), kv => kv.Key));
+                                var blockerHolding = string.Join(",", System.Linq.Enumerable.Select(
+                                    System.Linq.Enumerable.Where(_lockedZones, kv => kv.Value == blockerRobotId), kv => kv.Key));
+                                var requesterQueuing = string.Join(",", System.Linq.Enumerable.Select(
+                                    System.Linq.Enumerable.Where(_waitingQueues, kvq => System.Linq.Enumerable.Any(kvq.Value, x => x.RobotId == robotId)), kvq => kvq.Key));
+                                var blockerQueuing = string.Join(",", System.Linq.Enumerable.Select(
+                                    System.Linq.Enumerable.Where(_waitingQueues, kvq => System.Linq.Enumerable.Any(kvq.Value, x => x.RobotId == blockerRobotId)), kvq => kvq.Key));
+                                Serilog.Log.Warning(
+                                    $"[交通管制] 死锁警告: {robotId}(当前持有:[{(string.IsNullOrEmpty(requesterHolding) ? "无" : requesterHolding)}], 排队中:[{(string.IsNullOrEmpty(requesterQueuing) ? "无" : requesterQueuing)}]) " +
+                                    $"正在排队等待 {zoneName}，但该区域被 {blockerRobotId}(当前持有:[{(string.IsNullOrEmpty(blockerHolding) ? "无" : blockerHolding)}], 排队中:[{(string.IsNullOrEmpty(blockerQueuing) ? "无" : blockerQueuing)}]) 占用。");
                             }
                         }
                         else 
@@ -97,6 +112,15 @@ namespace BasicRegionNavigation.Applications.Controllers
 
                     if (retryCount > maxRetries)
                     {
+                        // 【新增修复：死锁全局快照】
+                        lock (_lockObj)
+                        {
+                            var lockStatus = string.Join(", ", System.Linq.Enumerable.Select(_lockedZones, kv => $"{kv.Key}:{kv.Value}"));
+                            var queueStatus = _waitingQueues.ContainsKey(zoneName) 
+                                ? string.Join(" <- ", System.Linq.Enumerable.Select(_waitingQueues[zoneName], x => $"{x.RobotId}"))
+                                : "Empty";
+                            Serilog.Log.Error($"[死锁爆炸] {robotId} 等待 {zoneName} 锁超时！当前全网锁状态: [{lockStatus}], 当前区域等待队列: [{queueStatus}]");
+                        }
                         throw new ZoneLockTimeoutException($"Zone Deadlock: {robotId} waiting for Zone {zoneName} has timed out.");
                     }
                 }
@@ -120,6 +144,52 @@ namespace BasicRegionNavigation.Applications.Controllers
                 if (_lockedZones.ContainsKey(zoneName) && _lockedZones[zoneName] == robotId)
                 {
                     _lockedZones.Remove(zoneName);
+                    Serilog.Log.Information($"[交通管制] 释放锁: 区域={zoneName}, 车辆={robotId}");
+                }
+                else
+                {
+                    // 【需求4：释放失败校验】
+                    if (!_lockedZones.ContainsKey(zoneName))
+                    {
+                        Serilog.Log.Warning($"[交通管制] ⚠️ 释放锁失败: 车辆 {robotId} 尝试释放区域 [{zoneName}]，但该区域锁根本不存在（可能已被兜底清理或从未成功申请）。");
+                    }
+                    else
+                    {
+                        string actualHolder = _lockedZones[zoneName];
+                        Serilog.Log.Warning($"[交通管制] ⚠️ 释放锁失败: 车辆 {robotId} 尝试释放区域 [{zoneName}]，但该锁目前由 [{actualHolder}] 持有，拒绝越权释放（可能为幽灵调用）。");
+                    }
+                }
+            }
+        }
+
+        public void ReleaseAllLocksForRobot(string robotId, string keepZoneName = null)
+        {
+            lock (_lockObj)
+            {
+                // 找到该车辆持有的所有锁
+                var zonesHeldByRobot = new List<string>();
+                foreach (var kvp in _lockedZones)
+                {
+                    if (kvp.Value == robotId)
+                    {
+                        zonesHeldByRobot.Add(kvp.Key);
+                    }
+                }
+
+                // 移除除了当前物理区域之外的所有遗留锁
+                foreach (var zone in zonesHeldByRobot)
+                {
+                    if (zone != keepZoneName)
+                    {
+                        _lockedZones.Remove(zone);
+                        Serilog.Log.Information($"[交通管制] 兜底清理: 释放了车辆 {robotId} 遗留的幽灵锁 [{zone}]");
+                    }
+                }
+
+                // 同时清理该车辆可能遗留在等待队列中的幽灵排队
+                foreach (var queue in _waitingQueues.Values)
+                {
+                    queue.RemoveAll(x => x.RobotId == robotId);
                 }
             }
         }
@@ -129,6 +199,8 @@ namespace BasicRegionNavigation.Applications.Controllers
             lock (_lockObj)
             {
                 _lockedZones[zoneName] = robotId;
+                // 【新增日志】强制上锁
+                Serilog.Log.Warning($"[交通管制] 强制上锁: 区域={zoneName}, 车辆={robotId}");
             }
         }
 
@@ -138,6 +210,8 @@ namespace BasicRegionNavigation.Applications.Controllers
             {
                 _lockedZones.Clear();
                 _waitingQueues.Clear(); // 清理等待队列，触发现有 WaitAndAcquireLockAsync 抛出取消异常
+                // 【新增日志】
+                Serilog.Log.Warning("[交通管制] 触发全网交通锁清空！已强制驱散所有等待队列及占用锁。");
             }
         }
 

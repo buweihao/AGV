@@ -194,8 +194,10 @@ namespace BasicRegionNavigation.Infrastructure.Robots
                 return;
             }
 
-            // 【方案 B：动态重寻路】初始化黑名单，记录导致死锁/长时间等待的节点
-            var blockedNodes = new HashSet<int>();
+            try
+            {
+                // 【方案 B：动态重寻路】初始化黑名单，记录导致死锁/长时间等待的节点
+                var blockedNodes = new HashSet<int>();
             bool reachedTarget = false;
 
             while (!reachedTarget && !_cancelFlag)
@@ -355,9 +357,20 @@ namespace BasicRegionNavigation.Infrastructure.Robots
 
                 Serilog.Log.Debug($"MockRobot {Id}: 任务已完成。");
             }
-            else if (_cancelFlag)
+                else if (_cancelFlag)
+                {
+                    throw new TaskCanceledException($"MockRobot {Id} move task was canceled.");
+                }
+            }
+            finally
             {
-                throw new TaskCanceledException($"MockRobot {Id} move task was canceled.");
+                if (_trafficController != null && _mapNodes != null)
+                {
+                    var currentNodeObj = System.Linq.Enumerable.FirstOrDefault(_mapNodes, n => n.Id == CurrentNode);
+                    string keepZone = currentNodeObj != null ? Global.GetZoneName(currentNodeObj) : null;
+                    _trafficController.ReleaseAllLocksForRobot(this.Id, keepZone);
+                    Serilog.Log.Information($"MockRobot {Id}: GoToNodeAsync 退出(完成/异常/取消)，执行锁清理兜底。物理保留区域: {keepZone ?? "无"}");
+                }
             }
         }
 
