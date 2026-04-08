@@ -6,6 +6,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Core;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
 
 namespace BasicRegionNavigation.Views
 {
@@ -26,6 +29,58 @@ namespace BasicRegionNavigation.Views
             _timer.Interval = TimeSpan.FromMilliseconds(100);
             _timer.Tick += _timer_Tick;
             _timer.Start();
+
+            ReactAppWebView.WebMessageReceived += ReactAppWebView_WebMessageReceived;
+        }
+
+        private void ReactAppWebView_WebMessageReceived(object sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
+        {
+            try
+            {
+                string jsonStr = e.WebMessageAsJson;
+                using (var doc = JsonDocument.Parse(jsonStr))
+                {
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("type", out var typeProp))
+                    {
+                        string type = typeProp.GetString();
+                        if (type == "load_local_config")
+                        {
+                            string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs", "agv_config.json");
+                            if (!File.Exists(configPath))
+                            {
+                                configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "Configs", "agv_config.json");
+                            }
+
+                            if (File.Exists(configPath))
+                            {
+                                string content = File.ReadAllText(configPath);
+                                var response = new { type = "map_config_load_response", data = JsonSerializer.Deserialize<object>(content) };
+                                ReactAppWebView.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(response));
+                            }
+                        }
+                        else if (type == "save_local_config")
+                        {
+                            if (root.TryGetProperty("data", out var dataProp))
+                            {
+                                string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Configs", "agv_config.json");
+                                if (!File.Exists(configPath))
+                                {
+                                    configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "Configs", "agv_config.json");
+                                }
+
+                                string json = JsonSerializer.Serialize(dataProp, new JsonSerializerOptions { WriteIndented = true });
+                                File.WriteAllText(configPath, json);
+                                MessageBox.Show("配置已成功保存到本地 agv_config.json", "系统提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // 可以加日志
+            }
         }
 
         private void _timer_Tick(object sender, EventArgs e)

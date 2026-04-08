@@ -1,5 +1,5 @@
 import React, { useState, useRef, MouseEvent, useMemo, useEffect } from 'react';
-import { Download, Upload, MousePointer2, Link as LinkIcon, Plus, Settings, Trash2, X, Info, Map as MapIcon, Route, ChevronRight, GripVertical, Brush, ListFilter, ZoomIn, ZoomOut, Maximize, Square, Minus, ListOrdered } from 'lucide-react';
+import { Download, Upload, MousePointer2, Link as LinkIcon, Plus, Settings, Trash2, X, Info, Map as MapIcon, Route, ChevronRight, GripVertical, Brush, ListFilter, ZoomIn, ZoomOut, Maximize, Square, Minus, ListOrdered, FolderOpen, Save } from 'lucide-react';
 
 type NodeType = 'Normal' | 'Charging' | 'Load' | 'Unload' | 'Wash' | 'Buffer';
 type ActionCode = 'None' | 'Plc_Load' | 'Plc_Unload' | 'Plc_Wash' | 'Plc_OpenDoor';
@@ -113,6 +113,35 @@ export default function App() {
     return `hsla(${hue}, 70%, 50%, ${alpha})`;
   };
 
+  const deleteSelection = () => {
+    if (editingConnection) {
+      removeConnection(editingConnection.from, editingConnection.to);
+      setEditingConnection(null);
+      return;
+    }
+    if (selectedNodeIds.length > 0) {
+      setNodes(prev => prev.filter(n => !selectedNodeIds.includes(n.Id)).map(n => {
+        const newDistances = { ...n.ConnectedNodeDistances };
+        selectedNodeIds.forEach(id => {
+          delete newDistances[id.toString()];
+        });
+        return {
+          ...n,
+          ConnectedNodeDistances: newDistances
+        };
+      }));
+      setTemplates(prev => prev.map(t => ({
+        ...t,
+        Stages: t.Stages.filter(s => !selectedNodeIds.includes(s.TargetNodeId))
+      })));
+      setSelectedNodeIds([]);
+    }
+    if (selectedElementIds.length > 0) {
+      setVisualElements(prev => prev.filter(el => !selectedElementIds.includes(el.id)));
+      setSelectedElementIds([]);
+    }
+  };
+
   // Keyboard shortcuts for deletion
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -122,38 +151,61 @@ export default function App() {
           if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
             return;
           }
-          if (editingConnection) {
-            removeConnection(editingConnection.from, editingConnection.to);
-            setEditingConnection(null);
-            return;
-          }
-          if (selectedNodeIds.length > 0) {
-            setNodes(prev => prev.filter(n => !selectedNodeIds.includes(n.Id)).map(n => {
-              const newDistances = { ...n.ConnectedNodeDistances };
-              selectedNodeIds.forEach(id => {
-                delete newDistances[id.toString()];
-              });
-              return {
-                ...n,
-                ConnectedNodeDistances: newDistances
-              };
-            }));
-            setTemplates(prev => prev.map(t => ({
-              ...t,
-              Stages: t.Stages.filter(s => !selectedNodeIds.includes(s.TargetNodeId))
-            })));
-            setSelectedNodeIds([]);
-          }
-          if (selectedElementIds.length > 0) {
-            setVisualElements(prev => prev.filter(el => !selectedElementIds.includes(el.id)));
-            setSelectedElementIds([]);
-          }
+          deleteSelection();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mainMode, mapMode, selectedNodeIds, selectedElementIds]);
+  }, [mainMode, mapMode, selectedNodeIds, selectedElementIds, editingConnection]);
+
+  // Listen for local config from WPF
+  useEffect(() => {
+    const handleMessage = (event: any) => {
+      try {
+        const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (payload.type === 'map_config_load_response') {
+          const parsed = payload.data;
+          if (parsed) {
+            const importedPixelsPerMeter = parsed.PixelsPerMeter || 100;
+            setPixelsPerMeter(importedPixelsPerMeter);
+            if (parsed.MapNodes) setNodes(parsed.MapNodes);
+            if (parsed.TaskTemplates) setTemplates(parsed.TaskTemplates);
+            if (parsed.VisualElements) setVisualElements(parsed.VisualElements);
+          }
+        }
+      } catch (e) {
+        console.error("解析加载本地配置报错", e);
+      }
+    };
+
+    if ((window as any).chrome?.webview) {
+      (window as any).chrome.webview.addEventListener('message', handleMessage);
+      return () => (window as any).chrome.webview.removeEventListener('message', handleMessage);
+    }
+  }, []);
+
+  const loadFromLocal = () => {
+    if ((window as any).chrome?.webview) {
+      (window as any).chrome.webview.postMessage({ type: 'load_local_config' });
+    } else {
+      alert("当前不在软件集成环境，无法加载本地配置");
+    }
+  };
+
+  const saveToLocal = () => {
+    const config = {
+      MapNodes: nodes,
+      TaskTemplates: templates,
+      VisualElements: visualElements,
+      PixelsPerMeter: pixelsPerMeter
+    };
+    if ((window as any).chrome?.webview) {
+      (window as any).chrome.webview.postMessage({ type: 'save_local_config', data: config });
+    } else {
+      alert("当前不在软件集成环境，无法保存到本地");
+    }
+  };
 
   // Auto-increment ID for nodes
   const getNextNodeId = () => {
@@ -718,6 +770,23 @@ export default function App() {
             一键规整
           </button>
           <button
+            onClick={loadFromLocal}
+            className="flex items-center gap-2 px-3 py-1.5 border border-amber-800 bg-amber-900/20 hover:bg-amber-800 text-amber-200 rounded-md transition-colors text-sm font-medium"
+            title="从本地agv_config.json加载配置"
+          >
+            <FolderOpen size={14} />
+            加载本地
+          </button>
+          <button
+            onClick={saveToLocal}
+            className="flex items-center gap-2 px-3 py-1.5 border border-emerald-800 bg-emerald-900/20 hover:bg-emerald-800 text-emerald-200 rounded-md transition-colors text-sm font-medium mr-4"
+            title="保存配置到本地agv_config.json"
+          >
+            <Save size={14} />
+            应用并保存
+          </button>
+          <div className="h-6 w-px bg-neutral-800 mx-1"></div>
+          <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2 px-3 py-1.5 border border-neutral-700 hover:bg-neutral-800 text-neutral-300 rounded-md transition-colors text-sm font-medium"
           >
@@ -1150,6 +1219,16 @@ export default function App() {
                       <Brush size={16} />
                       <span className="text-sm font-medium">管制区刷子</span>
                     </button>
+                    {(selectedNodeIds.length > 0 || selectedElementIds.length > 0 || editingConnection) && (
+                      <button
+                        onClick={deleteSelection}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors bg-rose-600/20 text-rose-400 border border-rose-500/30 hover:bg-rose-600/40 mt-4 shadow-sm"
+                        title="删除当前选中的所有目标"
+                      >
+                        <Trash2 size={16} />
+                        <span className="text-sm font-bold">删除选中目标</span>
+                      </button>
+                    )}
                     {mapMode === 'paint_zone' && (
                       <div className="px-3 pb-3 pt-1">
                         <input
